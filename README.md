@@ -4,7 +4,7 @@ Database to store PFAS data.
 
 ### Graphical Interfaces / Data Viewers
 
-- [DBeaver (Community Edition)](https://dbeaver.io/download/) (works with both SQLite and DuckDB)
+- [DBeaver (Community Edition)](https://dbeaver.io/) (works with both SQLite and DuckDB)
     - Download from: <https://dbeaver.io/download/>
         - Download and run the installer (e.g. the `Windows (installer)` link which downloads a `.exe` file)
         - During the installation process, you'll have a 'Choose Users' option - select the 'For me (username)' option (NOT "For anyone...")
