@@ -1,0 +1,86 @@
+---
+title: "PFAS Database Platform Options - Research Notes"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+## Background
+
+This document describes some database platforms that were investigated for use in building the PFAS database, and lists some potential drawbacks and advantages of each. All of the options investigated are local / server-less / in-process databases (as opposed to Client-Server databases, like SQL Server), because (at the time of this writing) this project doesn't have the access to a server which could be used to host a more fully featured option.
+
+### SQLite
+
+[SQLite](https://www.sqlite.org/index.html) is a robust / stable database software system with a long track record. It is relatively simple, is easy to interface with using tools such as R and Python, and has some fairly well developed graphical user interface (GUI) options. 
+
+However, its ability to enforce data types and foreign key constraints is somewhat limited (maybe especially when used via a GUI). So, it may not meet the needs of a project like this, which seeks to implement some best practices for data management and ensure data quality.
+
+#### Foreign Keys
+
+SQLite does not support foreign key constraints by default. 
+
+See <https://www.sqlite.org/foreignkeys.html#fk_enable>:
+
+> Assuming the library is compiled with foreign key constraints enabled, it must still be enabled by the application at runtime, using the PRAGMA foreign_keys command. 
+
+> Foreign key constraints are disabled by default (for backwards compatibility), so must be enabled separately for each database connection.
+
+Also see <https://www.sqlite.org/quirks.html#foreign_key_enforcement_is_off_by_default>.
+
+#### Data Types
+
+SQLite does not enforce data type rules by default (see: <https://www.sqlite.org/quirks.html#flexible_typing>). 
+
+Although there is an easy workaround (using the `STRICT` option when creating a table), there is no specific data type for date (or datetime) data in SQLite, so even if data types are enforced (using the `STRICT` option), it isn't possible to enforce proper formatting of date fields when inputting data -- see <https://www.sqlite.org/quirks.html#no_separate_datetime_datatype>: 
+
+> SQLite has no DATETIME datatype. Instead, dates and times can be stored in any of these ways:
+- As a TEXT string in the ISO-8601 format. Example: '2018-04-02 12:13:46'.
+- As an INTEGER number of seconds since 1970 (also known as "unix time").
+- As a REAL value that is the fractional Julian day number.
+
+Note that there are some built-in functions that can be used to work with datetime data when entered in one of the formats above - see <https://www.sqlite.org/lang_datefunc.html>.
+
+#### Primary Keys
+
+Unlike most other databases, SQLite allows NULL values in primary key fields. This could be problematic for checking for unique values (although there is an easy workaround, so maybe not a big issue). See <https://www.sqlite.org/quirks.html#primary_keys_can_sometimes_contain_nulls>:
+
+> Due to an historical oversight, the column values of a PRIMARY KEY are allowed to be NULL. This is a bug, but by the time the problem was discovered there where so many databases in circulation that depended on the bug that the decision was made to support the buggy behavior moving forward. You can work around this problem by adding a NOT NULL constraint on each column of the PRIMARY KEY.
+
+#### Graphical Interface
+
+Several graphical interfaces are available for SQLite. However, they may not currently be approved by DIT, and likely will require a special request (and potentially addional review) to get them installed on a user's computer. Options include:
+
+- [SQLiteStudio](https://sqlitestudio.pl/)
+- [DB Browser for SQLite](https://sqlitebrowser.org/)
+- [DBeaver (Community Edition)](https://dbeaver.io/) (works with both SQLite and DuckDB)
+
+
+### DuckDB
+
+[DuckDB](https://duckdb.org/) is a fully functional, modern database that is easy to interface with using tools like R and Python. However, it's a somewhat new platform, and some features may still be in development. 
+
+A major drawback is that options for interfacing with a DuckDB database via a graphical user interface (GUI) are limited as of the time of this writing (see below for more information). 
+
+#### Graphical Interface
+
+As of this writing, I'm only aware of one graphical interface for DuckDB: [DBeaver (Community Edition)](https://dbeaver.io/) (note that this works with both SQLite and DuckDB)
+
+Because DuckDB is fairly new, it appears that DBeaver's support for DuckDB may be somewhat limited, and is likely still being developed. It may also be somewhat difficult for some users to connect to a DuckDB database from DBeaver (it requires downloading an additional driver -- `DuckDB JDBC Driver` -- see <https://duckdb.org/docs/api/java.html>).
+
+
+### Access
+
+Access is a widely used database system. A major advantage is that it is available by default to all Water Board staff, and some staff have prior experience using it, so it may be more likely that program staff can manage and maintain the database independently.
+
+The main drawbacks are that it can generally be somewhat more prone to bugs (e.g., database corruption) or problems that are difficult to troubleshoot (e.g., there's a known issue with importing data that contains text fields that sometimes start with a number) than other database systems. Also, it can be difficult to interface with an Access database via tools like R or Python, and often requires methods that are significantly different from those used by many more modern databases, so may not be a good option if it's going to be used directly by data scientists.
+
+

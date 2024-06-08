@@ -1,0 +1,709 @@
+---
+title: "PFAS Database - Access"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+```{=html}
+<!-- 
+DOCUMENT NOTES:
+  --- To render all formats, use "quarto render document_name.qmd" on the command line 
+  (make sure that the terminal is opened in the directory that contains the document).
+  For more info, see: https://quarto.org/docs/output-formats/html-multi-format.html 
+  --- The code in this file is generally meant to be executed interactively. When the
+  "eval:" option is set to "false" above, none of the code is executed when the 
+  document is rendered (to execute all of the code, either run it interactively, 
+  or set the "eval:" option to "true")
+  -->
+```
+## Background {#sec-background}
+
+This document describes the steps to create a database that stores data collected as part of an effort coordinated by the [CA State Water Resources Control Board](https://waterboards.ca.gov/) to monitor PFAS in drinking water wells.
+
+## Database Overview
+
+### Tables
+
+This database includes the following tables:
+
+-   `well_list` -- information about wells included in the study
+-   `PFAS_thresholds` -- regulatory thresholds for different classes of PFAS chemicals
+-   `targeted_analysis` -- lab analysis of samples for specific analytes
+-   `non_targeted_analysis` -- lab analysis of samples for a suite of analytes
+-   `field_data` -- field observations taken during sample collection
+
+### Data Types
+
+This database uses the following data types:
+
+-   `TEXT`
+-   `DOUBLE` (decimal number)
+-   `LONG` (integer)
+-   `DATETIME` (date or date/time)
+
+If there are problems when importing data, it's often due to a problem converting some of the input data to the correct type -- in these cases, you'll generally see a message that says: "the contents of fields in \#### record(s) were deleted". Often, this just occurs because there is a missing / `NULL` / `NA` value in a numeric field, so in general it's okay to proceed with the update even if this error is shown.
+
+::: callout-caution
+When loading data via a script, it's necessary to account for the `NULL` values in numeric fields by including `na = c('', 'NA', 'NULL')` in the `read_csv()` function.
+:::
+
+::: callout-caution
+Sometimes Access is unable to read data into text fields when some of the records in that field are only numeric data (or at least start with numbers) but other records in that field have text somewhere in the record; the records with text values are generally the ones that fail to get read into Access in these cases.
+
+However, this behavior doesn't seem to be consistent, and it's not clear what causes it. In at least one case, assigning a primary key to a table appears to have caused the problem, but it's hard to say for sure if that was actually the cause.
+:::
+
+For dates, Access appears to store the date in `YYYY-MM-DD` format, but the Access GUI generally seems to be able to detect the date format of an input file if it differs. If date formatting causes an issue with an import, you can used the `Advanced` button in the *Data Import Wizard* to select the date format of the input file.
+
+::: callout-caution
+When loading data via a script, fields with type = 'DATETIME' need to be formatted as `YYYY-MM-DD` (even though that's not how it appears in the database).
+:::
+
+### Primary Keys {#sec-background-primary-keys}
+
+Primary key fields define unique records, and assigning primary key fields will prevent duplicate data from being loaded to the database. Multiple fields can be assigned as primary keys (i.e., a composite primary key), in which case the combination of those fields defines unique records. The primary key is assigned below as part of the `CREATE TABLE` command that initializes each table, using the `PRIMARY KEY (column1, column2)` statement.
+
+::: callout-note
+When uploading data to an Access database, when a primary key violation occurs (i.e., when a duplicate record is detected), the user is given a warning message asking whether or not to proceed with the import. If the user opts to proceed, the duplicate records are not imported to the database, but the rest of records are imported. If the user opts to cancel the import, none of the records will be updated.
+:::
+
+### Foreign Keys {#sec-background-foreign-keys}
+
+Assigning a foreign key will ensure that when a new record is entered into a given table, a record with the same value must already exist in a referenced field in another table. This ensures consistency for data that needs to be cross-referenced between tables.
+
+For example, for targeted, non-targeted, and field data tables, assigning the `PS_Code` field as a foreign key that references the `PS_Code` field in the `well_list` table will ensure that any monitoring data loaded to the database references a valid PS_Code value in the well list. In effect, that means that whenever a new well is added to the study, the information for that well must be added to the `well_list` table before any monitoring data for that well can be loaded to the database.
+
+### UploadDateTime Field
+
+Each table includes an added field called `UploadDateTime`, which records the date/time when each record was imported to the database. This field may be useful for the following scenarios:
+
+-   If there are any problems discovered with data imported from a certain file after it is loaded into a table in the database, this field can be used to find those records and alter or delete them.
+-   If there are records that are not imported due to a primary key (i.e., unique record) violation, this field can be used to help find which record(s) failed to import (by filtering records for the upload date/time when the violation occurred, then comparing those records with the complete set of records in the file, and finding which records in the file are not in the selected records in the database).
+
+::: callout-warning
+This field is created by the SQL statements below, but likely is not possible to assign the default calculated value (current date/time) to the field (e.g., using the `DEFAULT` statement as described [here](https://learn.microsoft.com/en-us/office/vba/access/concepts/structured-query-language/modify-a-table-s-design-using-access-sql) doesn't work -- as noted, it only works with certain methods).
+
+The default value has to be manually assigned to each table by opening the database in MS Access, then:
+
+-   open the table in '*Design View*'
+-   select the `UploadDateTime` row (make sure you do this -- if not, the `UploadDateTime` field will be blank, and the date/time will likely appear in the row of empty data in the first column of the table)
+-   in the '*Field Properties*' box at the bottom of the screen type: `= Now()` in the '*Default Value*' field.
+-   save and close the table
+:::
+
+### SQL
+
+::: callout-warning
+MS Access does not allow comments in SQL statements.
+:::
+
+## Setup {#sec-setup}
+
+Load packages and set options:
+
+```{r, chunk-setup}
+
+# packages ----
+library(odbc)
+library(DBI) # loads RSQLite
+library(duckdb)
+library(tidyverse)
+library(dbplyr)
+library(here)
+library(glue)
+library(RODBC)
+
+# conflicts ----
+library(conflicted)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dbplyr::sql)
+
+# options ----
+options(scipen = 999) # turn off scientific notation
+```
+
+## Connect to Database {#sec-create-db}
+
+First, manually create a new access database (right click -\> `New` -\> `Microsoft Access Database`) and re-name it (the name should match the name used in the chunk below - e.g., `pfas_db_test.accdb`)
+
+```{r, chunk-create-db}
+#| message: false
+#| warning: false
+
+
+db_path <- here('02_database',
+                'access_test', 
+                # 'pfas_db_test.accdb'
+                # 'test_1_manual_uploads.accdb'
+                # 'pfas-db-template_no-PK.accdb'
+                'pfas-db-template_with-PK.accdb'
+                )
+
+con_db_pfas <- odbc::dbConnect(drv = odbc(), 
+                          .connection_string = paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",
+                                                      db_path,
+                                                      ";"))
+
+```
+
+Set up RODBC connection (may not be needed):
+
+```{r}
+
+db_con_string = paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",
+                                                      db_path,
+                                                      ";")
+db_channel <- odbcDriverConnect(db_con_string)
+```
+
+## Create Tables
+
+See [here](https://duckdb.org/docs/sql/statements/create_table.html) for DuckDB table creation options.
+
+For valid data types, see [here](https://duckdb.org/docs/sql/data_types/overview).
+
+### PFAS Thresholds Table
+
+Primary Key:
+
+-   `Analyte_Name`
+
+Numeric Fields:
+
+-   `Public_Health_Goal`
+-   `CCRDL`
+-   `Notification_Level`
+-   `Response_Level`
+
+```{r, chunk-create-table-thresholds}
+
+# https://learn.microsoft.com/en-us/office/vba/access/concepts/structured-query-language/create-and-delete-tables-and-indexes-using-access-sql
+# http://allenbrowne.com/ser-49.html
+# https://stackoverflow.com/questions/26568206/creating-a-table-using-sql-in-access
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE PFAS_thresholds (
+          Analyte_Name TEXT PRIMARY KEY,
+          Public_Health_Goal DOUBLE, 
+          Consumer_Confidence_Report_Detection_Level DOUBLE,
+          Notification_Level DOUBLE, 
+          Response_Level DOUBLE,
+          UploadDateTime DATETIME
+          )"
+)
+```
+
+### Well List Table
+
+Primary Key:
+
+-   `PS_Code`
+
+Numeric Fields:
+
+-   `PWS_population`
+-   `PWS_number_service_connection`
+-   `Well_Latitude`
+-   `Well_Longitude`
+-   `Well_elevation_in_ft_msl`
+-   `Well_casing_diameter_in_inches`
+-   `Well_top_of_screen_in_ft_bgs`
+-   `Well_screen_length_in_ft`
+
+```{r, chunk-create-table-wells}
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE well_list (
+          PS_Code TEXT,
+          PWSID TEXT,
+          PWS_water_system_name TEXT,
+          PWS_County TEXT,
+          PWS_population LONG,
+          PWS_DAC_satus_for_2023 TEXT,
+          PWS_number_service_connection LONG,
+          Regulating_Agency TEXT,
+          Well_facility_name TEXT,
+          Well_Latitude DOUBLE,
+          Well_Longitude DOUBLE,
+          Well_elevation_in_ft_msl DOUBLE, 
+          Well_casing_diameter_in_inches DOUBLE, 
+          Well_top_of_screen_in_ft_bgs DOUBLE, 
+          Well_screen_length_in_ft DOUBLE, 
+          NTA_preselected_Locations TEXT,
+          Previous_Order TEXT,
+          ActivityStatus TEXT,
+          Removed TEXT,
+          Added TEXT,
+          Updated TEXT,
+          Changelog TEXT,
+          UploadDateTime DATETIME,
+          CONSTRAINT PK_well_list
+            PRIMARY KEY (PS_Code)
+          )"
+)
+
+```
+
+### Targeted Analysis (AOF/533+) Table
+
+Create a table called `targeted_analysis` to store AOF and 533+ data received from the lab.
+
+::: callout-warning
+Fields included in the primary or foreign key cannot contain `NULL` values. The primary key descibed below will not be used in the initial version of the table because the `State_Sample_ID` field is `NULL` for Lab QC records.
+:::
+
+Fields included in the primary key (see @sec-background-primary-keys) are:
+
+-   Lab_Sample_ID
+-   State_Sample_ID
+-   Batch
+-   Analyte_Name
+
+::: callout-note
+To include the primary key constraint descibed above, insert the following lines in the code chunk below, just after the last field is defined:
+
+```         
+CONSTRAINT PK_targeted_analysis
+    PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
+```
+:::
+
+The `PS_Code` field is defined as a foreign key (see @sec-background-foreign-keys), and it references the `PS_Code` field in the `well_list` table (so that for any new record that is added in this table, the `PS_Code` for that record must exist in the `well_list` table).
+
+```{r, chunk-create-table-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          'CREATE TABLE targeted_analysis (
+          Lab_ELAP_CertID TEXT,
+          Lab_Sample_ID TEXT,
+          Composite_YN TEXT,
+          State_Sample_ID TEXT,
+          PS_Code TEXT,
+          Collection_Address TEXT, 
+          Collection_Date DATETIME, 
+          Collection_Time TEXT, 
+          Sample_Type TEXT,
+          Lab_Receipt_Date DATETIME, 
+          Collector_Name TEXT,
+          Sample_Volume TEXT, 
+          Original_Lab_Sample_ID TEXT, 
+          Original_Collection_Date TEXT, 
+          Composite_Parent_YN TEXT, 
+          Composite_Parent_Sample_ID TEXT, 
+          Composite_Sample_Date	TEXT, 
+          Free_Chlorine_Residual TEXT, 
+          Total_Chlorine_Residual TEXT, 
+          Sample_Water_Temperature TEXT, 
+          Temperature_Units_of_Measure TEXT, 
+          Turbidity_Measure TEXT, 
+          pH_Measure TEXT, 
+          Sample_Comments TEXT, 
+          Original_Lab_ELAP_CertID TEXT, 
+          Placeholder1 TEXT, 
+          Placeholder2 TEXT, 
+          Analyte_Name TEXT,
+          Analyte_Code TEXT,
+          Analysis_Start_Date DATETIME, 
+          Analysis_Start_Time TEXT, 
+          Analysis_Complete_Date DATETIME, 
+          Analysis_Complete_Time TEXT, 
+          Analysis_Method_Code TEXT,
+          Less_Than_Indicator TEXT,
+          Reporting_Level DOUBLE,
+          Reporting_Level_Units TEXT,
+          Result TEXT, 
+          Result_Units TEXT,
+          Radiological_Count_Error TEXT, 
+          Analysis_Comments TEXT,
+          Batch TEXT,
+          MDL DOUBLE,
+          MRL DOUBLE,
+          Recovery DOUBLE,
+          RPD DOUBLE,
+          Qualifiers TEXT,
+          UploadDateTime DATETIME,
+          CONSTRAINT FK_targeted_analysis
+            FOREIGN KEY (PS_Code)
+            REFERENCES well_list (PS_Code)
+          )'
+          )
+
+# primary key constraint (add to SQL statement above foreign key constraint):
+# CONSTRAINT PK_targeted_analysis
+#     PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
+```
+
+### Non-Targeted Analysis (NTA) Table
+
+Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command. The combination of these fields defines unique records, and will prevent duplicate data from being loaded. Fields included in the primary key:
+
+-   Lab_Sample_ID
+-   State_Sample_ID
+-   Batch
+-   Analyte_Name
+
+::: callout-note
+To include the primary key constraint descibed above, insert the following lines in the code chunk below, just after the last field is defined:
+
+```         
+CONSTRAINT PK_non_targeted_analysis
+    PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
+```
+:::
+
+The `PS_Code` field is defined as a foreign key (see @sec-background-foreign-keys), and it references the `PS_Code` field in the `well_list` table (so that for any new record that is added in this table, the `PS_Code` for that record must exist in the `well_list` table).
+
+```{r, chunk-create-table-non-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          'CREATE TABLE non_targeted_analysis (
+          Lab_Sample_ID TEXT,
+          State_Sample_ID TEXT,
+          PS_Code TEXT,
+          Collection_Date DATETIME,
+          Collection_Time TEXT, 
+          Sample_Type TEXT,
+          Batch TEXT,
+          StudyFileID TEXT,
+          Method TEXT,
+          Conf TEXT,
+          Analyte_Name TEXT,
+          DSSToxID TEXT,
+          ExactMass DOUBLE,
+          MZError DOUBLE,
+          Formula TEXT,
+          RT DOUBLE,
+          Area TEXT, 
+          TcrRec DOUBLE,
+          Analyzed DATETIME, 
+          MDL DOUBLE,
+          Res2MDL DOUBLE,
+          Qualifiers TEXT,
+          UploadDateTime DATETIME,
+          CONSTRAINT FK_non_targeted_analysis
+            FOREIGN KEY (PS_Code)
+            REFERENCES well_list (PS_Code)
+          )'
+          )
+
+# primary key constraint (add to SQL statement above foreign key constraint):
+# CONSTRAINT PK_non_targeted_analysis
+#   PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
+```
+
+### Field Data Table
+
+Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command. The combination of these fields defines unique records, and will prevent duplicate data from being loaded. Fields included in the primary key:
+
+-   PS_Code
+-   field_data_id (?)
+-   field_visit_id (?)
+
+```{r, chunk-create-table-field}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE field_data (
+          PS_Code TEXT,
+          field_collection_date DATETIME,
+          field_data_id TEXT,
+          field_visit_id TEXT,
+          field_weather_conditions TEXT,
+          field_pws_info_notes TEXT,
+          field_pump_operating TEXT,
+          field_sample_location TEXT,
+          field_sample_collection_remarks TEXT,
+          field_meter_model TEXT,
+          field_time_1 TEXT,
+          field_time_2 TEXT,
+          field_time_3 TEXT,
+          field_temp_f_1 DOUBLE,
+          field_temp_f_2 DOUBLE,
+          field_temp_f_3 DOUBLE,
+          field_ph_1 DOUBLE,
+          field_ph_2 DOUBLE,
+          field_ph_3 DOUBLE,
+          field_ec_uscm_1 DOUBLE,
+          field_ec_uscm_2 DOUBLE,
+          field_ec_uscm_3 DOUBLE,
+          field_turbidity_ntu DOUBLE,
+          field_gas_bubbles TEXT,
+          field_odor TEXT,
+          field_odor_yes_desc TEXT,
+          field_color TEXT,
+          field_color_other_desc TEXT,
+          field_sediment TEXT,
+          field_sediment_yes_desc TEXT,
+          field_other_remarks TEXT,
+          UploadDateTime DATETIME,
+          CONSTRAINT PK_field_data
+            PRIMARY KEY (PS_Code, field_data_id, field_visit_id),
+          CONSTRAINT FK_field_data
+            FOREIGN KEY (PS_Code)
+            REFERENCES well_list (PS_Code)
+          )"
+          )
+```
+
+## Connect to Tables {#sec-database-connections-tables}
+
+```{r}
+#| message: false
+#| warning: false
+
+con_table_pfas_thresholds <- tbl(con_db_pfas,
+                                 'PFAS_thresholds')
+
+con_table_well_list <- tbl(con_db_pfas,
+                           'well_list')
+
+con_table_targeted <- tbl(con_db_pfas,
+                          'targeted_analysis')
+
+con_table_nta <- tbl(con_db_pfas,
+                     'non_targeted_analysis')
+
+con_table_field <- tbl(con_db_pfas,
+                       'field_data')
+
+```
+
+## Create Views (Reports)
+
+This section creates views (referred to as 'Queries' in MS Access) that report all records that exceed one of the thresholds defined in the `PFAS_thresholds` table.
+
+### Exceedance Report Function
+
+The code below creates a generic function that generates the SQL query which creates a view (defined by the `report_view_name` parameter) for a given threshold value (defined by the `threshold_field_name` parameter).
+
+```{r}
+
+create_view_query <- function(results_table_name = 'targeted_analysis', 
+                              thresholds_table_name = 'PFAS_thresholds', 
+                              threshold_field_name, 
+                              report_view_name) {
+    
+    # build SQL statement to query data for exceedences
+    query_view <- glue(
+        "SELECT 
+        {results_table_name}.Lab_Sample_ID, 
+        {results_table_name}.PS_Code, 
+        {results_table_name}.Collection_Date,
+        {results_table_name}.Collection_Time,
+        {results_table_name}.Analyte_Name, 
+        {results_table_name}.Result, 
+        {results_table_name}.Result_Units, 
+        {thresholds_table_name}.{threshold_field_name}, 
+        IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No') AS Exceedence_YesNo
+        FROM {thresholds_table_name} 
+        INNER JOIN {results_table_name} ON {thresholds_table_name}.[Analyte_Name] = {results_table_name}.[Analyte_Name]
+        WHERE ((({results_table_name}.Result)<>'ND') 
+        AND (({thresholds_table_name}.{threshold_field_name}) Is Not Null) 
+        AND ((IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No'))='Yes'));"
+    )
+    
+    # add statement to create view
+    query_view <- glue('CREATE VIEW {report_view_name} AS {query_view}')
+    
+    # return the formateed SQL string
+    return(query_view)
+}
+
+
+# Example - Raw SQL - Response Level
+# query_view_RL <- glue(
+# "SELECT 
+# targeted_analysis.Lab_Sample_ID, 
+# targeted_analysis.PS_Code, 
+# targeted_analysis.Analyte_Name, 
+# targeted_analysis.Result, 
+# targeted_analysis.Result_Units, 
+# PFAS_thresholds.Response_Level, 
+# IIf((CDbl([Result])>CDbl([Response_Level]))<0,'Yes','No') AS Exceedence_YesNo
+# FROM PFAS_thresholds 
+# INNER JOIN targeted_analysis ON PFAS_thresholds.[Analyte_Name] = targeted_analysis.[Analyte_Name]
+# WHERE (((targeted_analysis.Result)<>'ND') 
+#     AND ((PFAS_thresholds.Response_Level) Is Not Null) 
+#     AND ((IIf((CDbl([Result])>CDbl([Response_Level]))<0,'Yes','No'))='Yes'));"
+# )
+# 
+# query_view_RL <- glue('CREATE VIEW exceedance_report_RL AS {query_view_RL}')
+
+```
+
+#### Response Level
+
+Create a view / query to report exceedences of the *Response Level* thresholds:
+
+```{r}
+
+# create 'Response Level' Exceedence Report (view)
+
+query_view_response_level <- create_view_query(results_table_name = 'targeted_analysis', 
+                                               thresholds_table_name = 'PFAS_thresholds', 
+                                               threshold_field_name = 'Response_Level', 
+                                               report_view_name = 'exceedance_report_response_level')
+
+# create view
+dbExecute(con_db_pfas, 
+          query_view_response_level)
+
+## write to file ----
+write_lines(query_view_response_level, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_exccedance-report_RL.sql'))
+
+```
+
+#### Notification Level
+
+Create a view / query to report exceedences of the *Notification Level* thresholds:
+
+```{r}
+# create Notification Level exceedence report (view)
+
+# create query
+query_view_notification_level <- create_view_query(
+    results_table_name = 'targeted_analysis', 
+    thresholds_table_name = 'PFAS_thresholds', 
+    threshold_field_name = 'Notification_Level', 
+    report_view_name = 'exceedance_report_notification_level'
+) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_notification_level)
+
+## write query to file ----
+write_lines(query_view_notification_level, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_exccedance-report_notification-level.sql'))
+```
+
+#### CCRDL (Consumer Confidence Report Detection Level)
+
+Create a view / query to report exceedences of the *Consumer Confidence Report Detection Level* thresholds:
+
+```{r}
+# create Consumer Confidence Report Detection Level exceedence report (view)
+
+# create query
+query_view_ccr_level <- create_view_query(
+    results_table_name = 'targeted_analysis', 
+    thresholds_table_name = 'PFAS_thresholds', 
+    threshold_field_name = 'Consumer_Confidence_Report_Detection_Level', 
+    report_view_name = 'exceedance_report_CCRDL'
+) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_ccr_level)
+
+## write query to file ----
+write_lines(query_view_ccr_level, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_exccedance-report_CCR-detection-level.sql'))
+```
+
+#### Public Health Goal
+
+Create a view / query to report exceedences of the *Public_Health_Goal* thresholds:
+
+```{r}
+# create Public Health Goal report (view)
+
+# create query
+query_view_public_health_goal <- create_view_query(
+    results_table_name = 'targeted_analysis', 
+    thresholds_table_name = 'PFAS_thresholds', 
+    threshold_field_name = 'Public_Health_Goal', 
+    report_view_name = 'exceedance_report_public_health_goal'
+) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_public_health_goal)
+
+## write query to file ----
+write_lines(query_view_public_health_goal, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_exccedance-report_public_health_goal.sql'))
+```
+
+### Connect to Views
+
+```{r}
+
+con_view_response_level <- tbl(con_db_pfas, 
+                               'exceedance_report_response_level')
+con_view_public_notification_level <- tbl(con_db_pfas, 
+                                          'exceedance_report_notification_level')
+con_view_ccr_level <- tbl(con_db_pfas, 
+                          'exceedance_report_CCRDL')
+con_view_public_health_goal <- tbl(con_db_pfas, 
+                                   'exceedance_report_public_health_goal')
+```
+
+## Get / Check Database Info
+
+```{r, chunk-db-tools}
+
+# # list tables ----
+dbListTables(con_db_pfas)
+# 
+# # number of records ----
+# ## method 1
+# dim(dbReadTable(con_db_pfas, 'well_list'))
+# ## method 2 
+# dbGetQuery(con_db_pfas, "SELECT COUNT(*) FROM targeted_analysis")[1,1]
+# ## method 3 (only works after creating table connections)
+# con_table_well_list %>% summarize(count = n()) %>% pull(count)
+# 
+# # drop table ----
+# sqlDrop(db_channel, 'non_targeted_analysis')
+```
+
+## Disconnect
+
+Close database connection.
+
+```{r, chunk-db-disconnect}
+
+dbDisconnect(con_db_pfas)
+```

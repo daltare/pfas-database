@@ -1,0 +1,462 @@
+---
+title: "PFAS Database - SQLite"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+```{=html}
+<!-- 
+DOCUMENT NOTES:
+  --- To render all formats, use "quarto render document_name.qmd" on the command line 
+  (make sure that the terminal is opened in the directory that contains the document).
+  For more info, see: https://quarto.org/docs/output-formats/html-multi-format.html 
+  --- The code in this file is generally meant to be executed interactively. When the
+  "eval:" option is set to "false" above, none of the code is executed when the 
+  document is rendered (to execute all of the code, either run it interactively, 
+  or set the "eval:" option to "true")
+  -->
+```
+
+
+## Background {#sec-background}
+
+\[Info / Purpose\]
+
+## Setup {#sec-setup}
+
+Load packages and set options:
+
+```{r, chunk-setup}
+
+# packages ----
+library(odbc)
+library(DBI) # loads RSQLite
+library(RSQLite)
+library(tidyverse)
+library(dbplyr)
+library(here)
+library(glue)
+
+# conflicts ----
+library(conflicted)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dbplyr::sql)
+
+# options ----
+options(scipen = 999) # turn off scientific notation
+```
+
+## Create Database {#sec-create-db}
+
+```{r, chunk-create-db}
+#| message: false
+#| warning: false
+
+# create database
+con_db_pfas <- DBI::dbConnect(RSQLite::SQLite(), 
+                              here('03_database',
+                                   'sqlite_test', 
+                                   'pfas_db_test.sqlite'), 
+                              read_only = FALSE,
+                              # flags = SQLITE_RWC
+                              )
+
+# check foreign key constraints
+dbExecute(con_db_pfas, 
+          "PRAGMA foreign_keys")
+
+# turn on foreign key constraints
+dbExecute(con_db_pfas, 
+          "PRAGMA foreign_keys = ON")
+```
+
+## Database Info
+
+```{r, chunk-db-tools}
+
+# list tables ----
+dbListTables(con_db_pfas)
+
+# number of records ----
+## method 1
+dim(dbReadTable(con_db_pfas, 'well_list'))
+## method 2 
+dbGetQuery(con_db_pfas, "SELECT COUNT(*) FROM targeted_analysis")[1,1]
+## method 3
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+
+# drop table ----
+# dbRemoveTable(con_db_pfas, 'targeted_analysis')
+```
+
+
+## Create Tables
+
+Create tables, using the `STRICT` option which enforces data types (see [here](https://www.sqlite.org/stricttables.html)). Valid data types (when using strict mode):
+
+-   Integer
+-   Real
+-   Text
+-   Blob
+-   Any
+
+
+### Well List
+
+Primary Key:
+
+-   PS_Code
+
+Numeric Fields:
+
+-   PWS_population (Integer)
+-   PWS_number_service_connection (Integer)
+-   Well_Latitude (Real)
+-   Well_Longitude (Real)
+
+NOTE: the following columns have `NULL` records and otherwise appear to always be integers -- should they be treated as strictly numeric values? If so, integers or real? 
+
+- Well_elevation_in_ft_msl
+- Well_casing_diameter_in_inches 
+- Well_top_of_screen_in_ft_bgs 
+- Well_screen_length_in_ft
+
+:: callout-caution
+NOTE: To treat these as numeric, have to account for the `NULL` values when loading
+::
+
+```{r}
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE well_list (
+          PS_Code TEXT,
+          PWSID TEXT,
+          PWS_water_system_name TEXT,
+          PWS_County TEXT,
+          PWS_population INTEGER,
+          PWS_DAC_satus_for_2023 TEXT,
+          PWS_number_service_connection INTEGER,
+          Regulating_Agency TEXT,
+          Well_facility_name TEXT,
+          Well_Latitude REAL,
+          Well_Longitude REAL,
+          Well_elevation_in_ft_msl REAL, --- NOTE: has 'NULL' values
+          Well_casing_diameter_in_inches REAL, --- NOTE: has 'NULL' values
+          Well_top_of_screen_in_ft_bgs REAL, --- NOTE: has 'NULL' values
+          Well_screen_length_in_ft REAL, --- NOTE: has 'NULL' values
+          NTA_preselected_Locations TEXT,
+          Previous_Order TEXT,
+          ActivityStatus TEXT,
+          Removed TEXT,
+          Added TEXT,
+          Updated TEXT,
+          Changelog TEXT,
+          PRIMARY KEY (PS_Code)
+          ) STRICT"
+)
+```
+
+### Targeted Analysis Table
+
+Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command. The combination of these fields defines unique records, and will prevent duplicate data from being loaded. Fields included in the primary key:
+
+-   Lab_Sample_ID
+-   PS_Code
+-   Batch
+-   Analyte_Name
+
+```{r, chunk-create-table-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE targeted_analysis (
+          Lab_ELAP_CertID TEXT,
+          Lab_Sample_ID TEXT NOT NULL,
+          Composite_YN TEXT,
+          State_Sample_ID TEXT,
+          PS_Code TEXT,
+          Collection_Address TEXT,
+          Collection_Date TEXT,
+          Collection_Time TEXT,
+          Sample_Type TEXT,
+          Lab_Receipt_Date TEXT,
+          Collector_Name TEXT,
+          Sample_Volume TEXT,
+          Original_Lab_Sample_ID TEXT,
+          Original_Collection_Date TEXT,
+          Composite_Parent_YN TEXT,
+          Composite_Parent_Sample_ID TEXT,
+          Composite_Sample_Date	TEXT,
+          Free_Chlorine_Residual TEXT,
+          Total_Chlorine_Residual TEXT,
+          Sample_Water_Temperature TEXT,
+          Temperature_Units_of_Measure TEXT,
+          Turbidity_Measure TEXT,
+          pH_Measure TEXT,
+          Sample_Comments TEXT,
+          Original_Lab_ELAP_CertID TEXT,
+          Placeholder1 TEXT,
+          Placeholder2 TEXT,
+          Analyte_Name TEXT,
+          Analyte_Code TEXT,
+          Analysis_Start_Date TEXT,
+          Analysis_Start_Time TEXT,
+          Analysis_Complete_Date TEXT,
+          Analysis_Complete_Time TEXT,
+          Analysis_Method_Code TEXT,
+          Less_Than_Indicator TEXT,
+          Reporting_Level REAL,
+          Reporting_Level_Units TEXT,
+          Result ANY, --- NOTE: Result has non-numeric characters, like 'ND'
+          Result_Units TEXT,
+          Radiological_Count_Error TEXT,
+          Analysis_Comments1 TEXT,
+          Batch TEXT NOT NULL,
+          Sample_ID TEXT,
+          MDL REAL,
+          MRL REAL,
+          Recovery REAL,
+          RPD REAL,
+          Qualifiers TEXT,
+          PRIMARY KEY (Lab_Sample_ID, PS_Code, Batch, Analyte_Name),
+          FOREIGN KEY (PS_Code) REFERENCES well_list(PS_Code)
+          ) STRICT"
+          )
+```
+
+
+### Connect to Tables {#sec-database-connections-tables}
+
+```{r}
+#| message: false
+#| warning: false
+
+con_table_well_list <- tbl(con_db_pfas,
+                           'well_list')
+
+con_table_targeted <- tbl(con_db_pfas,
+                          'targeted_analysis')
+
+# con_table_nta <- tbl(con_db_pfas,
+#                      'non_targeted_analysis')
+# 
+# con_table_field <- tbl(con_db_pfas,
+#                        'field_data')
+```
+
+
+## Append Data to Tables
+
+
+### Well List
+
+#### Original List
+
+```{r}
+
+# define file name
+file_name_load <- 'Example Well List_04152024.csv'
+
+# read data
+df_well_list <- read_csv(here('01_data_input', 
+                              file_name_load), 
+                         col_types = cols(.default = col_character()),
+                         na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_well_list)
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'well_list', 
+              value = df_well_list)
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+#### Updates (9 Wells)
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Well List_9 wells.csv'
+
+# read data
+df_well_list_2 <- read_csv(here('01_data_input', 
+                                file_name_load), 
+                           col_types = cols(.default = col_character()),
+                           na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_well_list_2)
+
+# load data - !!!! FAILS IF THERE ARE DUPLICATE PS CODES !!!!
+dbAppendTable(conn = con_db_pfas,
+              name = 'well_list',
+              value = df_well_list_2)
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+##### Upsert
+
+```{r, chunk-wells-upsert}
+
+# https://dbplyr.tidyverse.org/reference/rows-db.html
+# https://www.sqlite.org/lang_upsert.html
+
+# upsert ----
+rows_upsert(con_table_well_list, 
+            copy_inline(con_db_pfas, 
+                        df_well_list_2), 
+            in_place = TRUE)
+
+# check ----
+con_table_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # what's in the DB
+df_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # original list
+df_well_list_2 %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # 9 wells list
+```
+
+
+
+### Targeted Analysis
+
+#### AOF
+
+```{r, chunk-load-AOF-1}
+
+# define file name
+file_name_load <- 'Example C3J4257 AOF (CLIP+) CA0707625.csv'
+
+# read data
+df_aof_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = c('', 'NA')) %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>%
+    {.}
+
+# check
+glimpse(df_aof_1)
+
+# get keys 
+df_aof_1 %>% 
+    mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+    mutate(file_name = file_name_load) %>% 
+    select(key, file_name) %>% 
+    write_csv(here('AOF_keys.csv'))
+    # View()
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+             name = 'targeted_analysis', 
+             value = df_aof_1)
+```
+
+```{r, chunk-load-AOF-2}
+
+# define file name
+file_name_load <- 'Example CK33001 AOF (CLIP+) CA3310037.csv'
+
+# read data
+df_aof_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()), 
+                     na = '') %>%
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(File_Name = file_name_load) %>%
+    {.}
+
+# check
+glimpse(df_aof_2)
+
+# get keys 
+df_aof_2 %>% 
+    mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+    mutate(file_name = file_name_load) %>% 
+    select(key, file_name) %>% 
+    write_csv(here('01_data_input', '_AOF_keys.csv'),
+              append = TRUE)
+    # View()
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'targeted_analysis', 
+              value = df_aof_2)
+```
+
+#### 533
+
+```{r, chunk-load-533-1}
+
+# define file name
+file_name_load <- 'Example CK06046 533 (CLIP+) CA3310037.csv'
+
+# read data
+df_533_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_533_1)
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'targeted_analysis', 
+              value = df_533_1)
+```
+
+
+
+## Disconnect
+
+Close database connection.
+
+```{r, chunk-db-disconnect}
+
+dbDisconnect(con_db_pfas)
+```

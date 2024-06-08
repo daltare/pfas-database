@@ -1,0 +1,1172 @@
+---
+title: "PFAS Database - DuckDB"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+```{=html}
+<!-- 
+DOCUMENT NOTES:
+  --- To render all formats, use "quarto render document_name.qmd" on the command line 
+  (make sure that the terminal is opened in the directory that contains the document).
+  For more info, see: https://quarto.org/docs/output-formats/html-multi-format.html 
+  --- The code in this file is generally meant to be executed interactively. When the
+  "eval:" option is set to "false" above, none of the code is executed when the 
+  document is rendered (to execute all of the code, either run it interactively, 
+  or set the "eval:" option to "true")
+  -->
+```
+## Background {#sec-background}
+
+This document describes the steps to create a database that can store data collected as part of an effort coordinated by the [CA State Water Resources Control Board](https://waterboards.ca.gov/) to monitor PFAS in drinking water wells.
+
+\[Add background info?\]
+
+## Database Overview
+
+### Tables
+
+This database includes the following tables:
+
+- `well_list` -- information about wells included in the study
+- `PFAS_thresholds` -- regulatory thresholds for different classes of PFAS chemicals
+- `targeted_analysis` -- lab analysis of samples for specific analytes
+- `non_targeted_analysis` -- lab analysis of samples for a suite of analytes
+- `field_data` -- field observations taken during sample collection  
+
+### Primary Keys {#sec-background-primary-keys}
+
+Primary key fields define unique records, and assigning primary key fields will prevent duplicate data from being loaded to the database. Multiple fields can be assigned as primary keys (i.e., a composite primary key), in which case the combination of those fields defines unique records. The primary key is assigned below as part of the `CREATE TABLE` command that initializes each table, using the `PRIMARY KEY (column1, column2)` statement.
+
+### Foreign Keys {#sec-background-foreign-keys}
+
+Assigning a foreign key will ensure that when a new record is entered into a given table, a record with the same value must already exist in a referenced field in another table. This ensures consistency for data that needs to be cross-referenced between tables. For example, for targeted, non-targeted, and field data tables, assigning the `PS_Code` field as a foreign key that references the `PS_Code` field in the `well_list` table will ensure that any analytical data loaded to the database references a valid PS_Code value in the well list. In effect, that means that whenever a new well is added to the study, the information for that well must be added to the `well_list` table before any analytical data for that well can be loaded to the database.
+
+## Setup {#sec-setup}
+
+Load packages and set options:
+
+```{r, chunk-setup}
+
+# packages ----
+library(odbc)
+library(DBI) # loads RSQLite
+library(duckdb)
+library(tidyverse)
+library(dbplyr)
+library(here)
+library(glue)
+
+# conflicts ----
+library(conflicted)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dbplyr::sql)
+
+# options ----
+options(scipen = 999) # turn off scientific notation
+```
+
+## Create Database {#sec-create-db}
+
+```{r, chunk-create-db}
+#| message: false
+#| warning: false
+
+# create database
+con_db_pfas <- DBI::dbConnect(duckdb::duckdb(), 
+                              dbdir = here('03_database',
+                                           'duck_test', 
+                                           'pfas_db_test.duckdb'), 
+                              read_only = FALSE)
+```
+
+## Database Info
+
+```{r, chunk-db-tools}
+
+# list tables ----
+dbListTables(con_db_pfas)
+
+# number of records ----
+## method 1
+dim(dbReadTable(con_db_pfas, 'well_list'))
+## method 2 
+dbGetQuery(con_db_pfas, "SELECT COUNT(*) FROM targeted_analysis")[1,1]
+## method 3
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+
+# drop table ----
+dbRemoveTable(con_db_pfas, 'well_list')
+```
+
+## Create Tables
+
+See [here](https://duckdb.org/docs/sql/statements/create_table.html) for DuckDB table creation options.
+
+For valid data types, see [here](https://duckdb.org/docs/sql/data_types/overview).
+
+### PFAS Thresholds Table
+
+Primary Key:
+
+-   Analyte
+
+Numeric Fields:
+
+-   Public_Health_Goal
+-   CCRDL
+-   Notification_Level
+-   Response_Level
+
+```{r, chunk-create-table-thresholds}
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE PFAS_thresholds (
+          Analyte_Name VARCHAR,
+          Public_Health_Goal REAL, --- NOTE: has NULL values
+          Consumer_Confidence_Report_Detection_Level REAL,
+          Notification_Level REAL, --- NOTE: has NULL values
+          Response_Level REAL, --- NOTE: has NULL values
+          PRIMARY KEY (Analyte_Name)
+          )"
+)
+```
+
+### Well List Table
+
+Primary Key:
+
+-   PS_Code
+
+Numeric Fields:
+
+-   PWS_population (Integer)
+-   PWS_number_service_connection (Integer)
+-   Well_Latitude (Real)
+-   Well_Longitude (Real)
+
+NOTE: the following columns have `NULL` records and otherwise appear to always be integers -- should they be treated as strictly numeric values? If so, integers or real?
+
+-   Well_elevation_in_ft_msl
+-   Well_casing_diameter_in_inches
+-   Well_top_of_screen_in_ft_bgs
+-   Well_screen_length_in_ft
+
+:: callout-caution
+NOTE: To treat these as numeric, have to account for the `NULL` values when loading
+::
+
+```{r, chunk-create-table-wells}
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE well_list (
+          PS_Code VARCHAR,
+          PWSID VARCHAR,
+          PWS_water_system_name VARCHAR,
+          PWS_County VARCHAR,
+          PWS_population INTEGER,
+          PWS_DAC_satus_for_2023 VARCHAR,
+          PWS_number_service_connection INTEGER,
+          Regulating_Agency VARCHAR,
+          Well_facility_name VARCHAR,
+          Well_Latitude REAL,
+          Well_Longitude REAL,
+          Well_elevation_in_ft_msl REAL, --- NOTE: has 'NULL' values
+          Well_casing_diameter_in_inches REAL, --- NOTE: has 'NULL' values
+          Well_top_of_screen_in_ft_bgs REAL, --- NOTE: has 'NULL' values
+          Well_screen_length_in_ft REAL, --- NOTE: has 'NULL' values
+          NTA_preselected_Locations VARCHAR,
+          Previous_Order VARCHAR,
+          ActivityStatus VARCHAR,
+          Removed VARCHAR,
+          Added VARCHAR,
+          Updated VARCHAR,
+          Changelog VARCHAR,
+          PRIMARY KEY (PS_Code)
+          )"
+)
+```
+
+### Targeted Analysis (AOF/533+) Table
+
+Create a table called `targeted_analysis` to store AOF and 533+ data recieved from the lab.
+
+#### Keys
+
+Fields included in the primary key (see @sec-background-primary-keys) are:
+
+-   State_Sample_ID
+-   PS_Code
+-   Batch
+-   Analyte_Name
+
+The `PS_Code` field is defined as a foreign key (see @sec-background-foreign-keys), and it references the `PS_Code` field in the `well_list` table (so that for any new record that is added in this table, the `PS_Code` for that record must exist in the `well_list` table).
+
+#### Generated Columns
+
+To create formatted date and datetime fields, the following columns are generated from calculations based on fields in the input datasets:
+
+-   Collection_Date_Formatted
+-   Collection_DateTime_Formatted
+-   Lab_Receipt_Date_Formatted
+-   Analysis_Start_Date_Formatted
+-   Analysis_Start_DateTime_Formatted
+-   Analysis_Complete_Date_Formatted
+-   Analysis_Complete_DateTime_Formatted
+
+```{r, chunk-create-table-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE targeted_analysis (
+          Lab_ELAP_CertID VARCHAR,
+          Lab_Sample_ID VARCHAR,
+          Composite_YN VARCHAR,
+          State_Sample_ID VARCHAR,
+          PS_Code VARCHAR,
+          Collection_Address VARCHAR, --- will be blank/null
+          Collection_Date VARCHAR, --- DATE!
+          Collection_Time VARCHAR, --- TIME!
+          Sample_Type VARCHAR,
+          Lab_Receipt_Date VARCHAR, --- DATE!
+          Collector_Name VARCHAR,
+          Sample_Volume VARCHAR, --- will be blank/null
+          Original_Lab_Sample_ID VARCHAR, --- will be blank/null
+          Original_Collection_Date VARCHAR, --- will be blank/null
+          Composite_Parent_YN VARCHAR, --- will be blank/null
+          Composite_Parent_Sample_ID VARCHAR, --- will be blank/null
+          Composite_Sample_Date	VARCHAR, --- will be blank/null
+          Free_Chlorine_Residual VARCHAR, --- will be blank/null
+          Total_Chlorine_Residual VARCHAR, --- will be blank/null
+          Sample_Water_Temperature VARCHAR, --- will be blank/null
+          Temperature_Units_of_Measure VARCHAR, --- will be blank/null
+          Turbidity_Measure VARCHAR, --- will be blank/null
+          pH_Measure VARCHAR, --- will be blank/null
+          Sample_Comments VARCHAR, --- will be blank/null
+          Original_Lab_ELAP_CertID VARCHAR, --- will be blank/null
+          Placeholder1 VARCHAR, --- will be blank/null
+          Placeholder2 VARCHAR, --- will be blank/null
+          Analyte_Name VARCHAR,
+          Analyte_Code VARCHAR,
+          Analysis_Start_Date VARCHAR, --- DATE!
+          Analysis_Start_Time VARCHAR, --- TIME!
+          Analysis_Complete_Date VARCHAR, --- DATE!
+          Analysis_Complete_Time VARCHAR, --- TIME!
+          Analysis_Method_Code VARCHAR,
+          Less_Than_Indicator VARCHAR,
+          Reporting_Level REAL,
+          Reporting_Level_Units VARCHAR,
+          Result VARCHAR, --- NOTE: Result has non-numeric characters, like 'ND'
+          Result_Units VARCHAR,
+          Radiological_Count_Error VARCHAR, --- will be blank/null
+          Analysis_Comments1 VARCHAR,
+          Batch VARCHAR,
+          Sample_ID VARCHAR,
+          MDL REAL,
+          MRL REAL,
+          Recovery REAL,
+          RPD REAL,
+          Qualifiers VARCHAR,
+          
+          --- Generated Columns
+          Collection_Date_Formatted DATE AS (strptime(Collection_Date, '%-m/%-d/%Y')),
+          Collection_DateTime_Formatted AS (strptime(concat(Collection_Date, ' ', Collection_Time), '%-m/%-d/%Y %-H:%M:%S')),
+          --- Lab_Receipt_Date_Formatted AS (strptime(Lab_Receipt_Date, '%-m/%-d/%Y')), 
+          Analysis_Start_Date_Formatted DATE AS (strptime(Analysis_Start_Date, '%-m/%-d/%Y')),
+          Analysis_Start_DateTime_Formatted AS (strptime(concat(Analysis_Start_Date, ' ', Analysis_Start_Time), '%-m/%-d/%Y %-H:%M:%S')),
+          Analysis_Complete_Date_Formatted DATE AS (strptime(Analysis_Complete_Date, '%-m/%-d/%Y')),
+          Analysis_Complete_DateTime_Formatted AS (strptime(concat(Analysis_Complete_Date, ' ', Analysis_Complete_Time), '%-m/%-d/%Y %-H:%M:%S')),
+          
+          --- Keys
+          PRIMARY KEY (State_Sample_ID, PS_Code, Batch, Analyte_Name),
+          FOREIGN KEY (PS_Code) REFERENCES well_list(PS_Code)
+          )"
+          )
+```
+
+### Non-Targeted Analysis (NTA) Table
+
+Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command. The combination of these fields defines unique records, and will prevent duplicate data from being loaded. Fields included in the primary key:
+
+-   Lab_Sample_ID
+-   PS_Code
+-   Batch
+-   Analyte_Name
+
+```{r, chunk-create-table-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE non_targeted_analysis (
+          Lab_Sample_ID VARCHAR,
+          State_Sample_ID VARCHAR,
+          PS_Code VARCHAR,
+          Collection_Date VARCHAR, --- DATE!
+          Collection_Time VARCHAR, --- TIME!
+          Sample_Type VARCHAR,
+          Batch VARCHAR,
+          StudyFileID VARCHAR,
+          Method VARCHAR,
+          Conf VARCHAR,
+          Analyte_Name VARCHAR,
+          DSSToxID VARCHAR,
+          ExactMass REAL,
+          MZError REAL,
+          Formula VARCHAR,
+          RT REAL,
+          Area VARCHAR, --- NOTE: Area has non-numeric characters, like 'ND'
+          TcrRec REAL,
+          Analyzed VARCHAR, --- DATE & TIME!
+          MDL REAL,
+          Res2MDL REAL,
+          Qualifiers VARCHAR,
+          
+          --- Generated Columns
+          Collection_Date_Formatted DATE AS (strptime(Collection_Date, '%-m/%-d/%Y')),
+          Collection_DateTime_Formatted AS (strptime(concat(Collection_Date, ' ', Collection_Time), '%-m/%-d/%Y %-H:%M:%S')),
+          
+          --- Keys
+          PRIMARY KEY (Lab_Sample_ID, PS_Code, Batch, Analyte_Name),
+          FOREIGN KEY (PS_Code) REFERENCES well_list(PS_Code)
+          )"
+          )
+```
+
+### Field Data Table
+
+Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command. The combination of these fields defines unique records, and will prevent duplicate data from being loaded. Fields included in the primary key:
+
+-   PS_Code
+-   field_data_id
+-   field_visit_id ?????
+
+```{r, chunk-create-table-targeted}
+
+# https://stackoverflow.com/a/65818858
+# https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
+
+# - Data Types (including STRICT): https://www.youtube.com/watch?v=GBMKl4XqnO8&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=5
+# - Dates: https://www.youtube.com/watch?v=nJRvz5Rhrx0&list=PLWENznQwkAoxww-cDEfIJ-uuPDfFwbeiJ&index=9&pp=iAQB
+
+# create table
+dbExecute(con_db_pfas, 
+          "CREATE TABLE field_data (
+          PS_Code VARCHAR,
+          Field_Collection_Date VARCHAR,
+          field_data_id VARCHAR,
+          field_visit_id VARCHAR,
+          field_weather_conditions VARCHAR,
+          field_pws_info_notes VARCHAR,
+          field_pump_operating VARCHAR,
+          field_sample_location VARCHAR,
+          field_sample_collection_remarks VARCHAR,
+          field_meter_model VARCHAR,
+          field_time_1 VARCHAR,
+          field_time_2 VARCHAR,
+          field_time_3 VARCHAR,
+          field_temp_f_1 REAL,
+          field_temp_f_2 REAL,
+          field_temp_f_3 REAL,
+          field_ph_1 REAL,
+          field_ph_2 REAL,
+          field_ph_3 REAL,
+          field_ec_uscm_1 REAL,
+          field_ec_uscm_2 REAL,
+          field_ec_uscm_3 REAL,
+          field_turbidity_ntu REAL,
+          field_gas_bubbles VARCHAR,
+          field_odor VARCHAR,
+          field_odor_yes_desc VARCHAR,
+          field_color VARCHAR,
+          field_color_other_desc VARCHAR,
+          field_sediment VARCHAR,
+          field_sediment_yes_desc VARCHAR,
+          field_other_remarks VARCHAR,
+          
+          --- Generated Columns
+          Field_Collection_Date_Formatted DATE AS (strptime(Field_Collection_Date, '%-m/%-d/%Y')),
+          
+          --- Keys
+          PRIMARY KEY (PS_Code, field_data_id, field_visit_id),
+          FOREIGN KEY (PS_Code) REFERENCES well_list(PS_Code)
+          )"
+          )
+```
+
+## Connect to Tables {#sec-database-connections-tables}
+
+```{r}
+#| message: false
+#| warning: false
+
+con_table_pfas_thresholds <- tbl(con_db_pfas,
+                                 'PFAS_thresholds')
+
+con_table_well_list <- tbl(con_db_pfas,
+                           'well_list')
+
+con_table_targeted <- tbl(con_db_pfas,
+                          'targeted_analysis')
+
+con_table_nta <- tbl(con_db_pfas,
+                     'non_targeted_analysis')
+
+con_table_field <- tbl(con_db_pfas,
+                       'field_data')
+
+con_view_public_health_goal <- tbl(con_db_pfas, 
+                                   'exceedance_report_public_health_goal')
+```
+
+## Create Views (Reports)
+
+### Threshold Exceedance Report - All Thresholds
+
+```{r}
+
+# https://duckdb.org/docs/sql/statements/create_view.html
+
+# dbplyr (to generate SQL)
+
+## all thresholds ----
+query_view_all_thresholds <- con_table_targeted %>% 
+    select(PS_Code, Lab_Sample_ID, Batch, Analyte_Name, 
+           Collection_Date, Collection_Date_Formatted,
+           Collection_DateTime_Formatted, 
+           Analysis_Start_DateTime_Formatted,
+           Analysis_Complete_DateTime_Formatted,
+           Result, Result_Units) %>% 
+    # format Result column as numeric
+    mutate(Result = if_else(Result == 'ND',
+                            '0',
+                            Result)) %>%
+    mutate(Result = as.numeric(Result)) %>%
+    # mutate(Result = 
+    #            sql("(CAST(CASE WHEN (Result = 'ND') THEN '0' WHEN NOT (Result = 'ND') THEN Result END AS NUMERIC))")) %>% 
+    # get threshold values
+    inner_join(con_table_pfas_thresholds,
+               by = c('Analyte_Name')
+    ) %>%
+    # check for exceedances
+    ## Public Health Goal
+    mutate(Public_Health_Goal_Exceedance = case_when(
+        is.na(Public_Health_Goal) ~ 'No',
+        Result > Public_Health_Goal ~ 'Yes', 
+        Result < Public_Health_Goal ~ 'No', 
+        .default = NA)) %>%
+    ## Consumer Confidence Report Detection Level (CCRDL)
+    mutate(Consumer_Confidence_Report_Detection_Level_Exceedance = case_when(
+        is.na(Consumer_Confidence_Report_Detection_Level) ~ 'No',
+        Result > Consumer_Confidence_Report_Detection_Level ~ 'Yes', 
+        Result < Consumer_Confidence_Report_Detection_Level ~ 'No', 
+        .default = NA)) %>%
+    ## Notification Level
+    mutate(Notification_Level_Exceedance = case_when(
+        is.na(Notification_Level) ~ 'No',
+        Result > Notification_Level ~ 'Yes', 
+        Result < Notification_Level ~ 'No', 
+        .default = NA)) %>%
+    ## Response Level
+    mutate(Response_Level_Exceedance = case_when(
+        is.na(Response_Level) ~ 'No',
+        Result > Response_Level ~ 'Yes', 
+        Result < Response_Level ~ 'No', 
+        .default = NA)) %>%
+    # filter for exceedances
+    filter(Public_Health_Goal_Exceedance == 'Yes' |
+               Consumer_Confidence_Report_Detection_Level_Exceedance == 'Yes' |
+               Notification_Level_Exceedance == 'Yes' |
+               Response_Level_Exceedance == 'Yes') %>% 
+    # get well info
+    left_join(con_table_well_list, 
+              by = c('PS_Code')) %>% 
+    # extract SQL query
+    db_sql_render(con = con_db_pfas) %>%
+    as.character()
+    ## check (view results - to use, comment out above 2 lines and un-comment line below)
+    # collect() %>% View()
+
+query_view_all_thresholds <- glue('
+                 /*
+                 NOTE: This query is automatically generated using the dbplyr R package, 
+                 from code contained in the 01_create_PFAS_duckdb_database.qmd file.
+                 */
+
+                 CREATE VIEW exceedance_report_all_thresholds AS
+                 {query_view_all_thresholds}')
+
+# create view
+dbExecute(con_db_pfas, 
+          query_view_all_thresholds)
+
+## write to file ----
+write_lines(query_view_all_thresholds, 
+            here('04_generated_SQL_queries', 
+                 'duckdb',
+                 'create-view_duckdb_exccedance-report_all-thresholds.sql'))
+
+
+    
+# query_test <- glue(
+#     "SELECT
+#     PS_Code,
+#     Lab_Sample_ID,
+#     Batch,
+#     Analyte_Name,
+#     Collection_Date,
+#     Collection_Time,
+#     CAST(CASE WHEN (Result = 'ND') THEN '0' WHEN NOT (Result = 'ND') THEN Result END AS NUMERIC) AS Result,
+#     Result_Units,
+#     Public_Health_Goal,
+#     Consumer_Confidence_Report_Detection_Level,
+#     Notification_Level,
+#     Response_Level,
+#     CASE WHEN ((Public_Health_Goal IS NULL)) THEN 'No' 
+#         WHEN (Public_Health_Goal < 
+#         (CAST(CASE WHEN (Result = 'ND') THEN '0' WHEN NOT (Result = 'ND') THEN Result END AS NUMERIC))) 
+#             THEN 'Yes' 
+#         ELSE 'No' END 
+#         AS Public_Health_Goal_Exceedance
+#     FROM targeted_analysis
+#     INNER JOIN PFAS_thresholds USING (Analyte_Name)"
+# )
+# #  
+
+
+  
+
+# z <- dbGetQuery(con_db_pfas, 
+# #                 "SELECT
+# #   LHS.*,
+# #   Public_Health_Goal,
+# #   Consumer_Confidence_Report_Detection_Level,
+# #   Notification_Level,
+# #   Response_Level
+# # FROM (
+# #   SELECT
+# #     PS_Code,
+# #     Lab_Sample_ID,
+# #     Batch,
+# #     Analyte_Name,
+# #     Collection_Date,
+# #     Collection_Time,
+# #     CAST(CASE WHEN (Result = 'ND') THEN '0' WHEN NOT (Result = 'ND') THEN Result END AS NUMERIC) AS Result,
+# #     Result_Units
+# #   FROM targeted_analysis
+# # ) LHS
+# # INNER JOIN PFAS_thresholds
+# #   ON (LHS.Analyte_Name = PFAS_thresholds.Analyte_Name)"
+#                 query_test
+#                 )
+
+# dbExecute(con_db_pfas, 
+#           "CREATE VIEW exceedance_report AS
+#           SELECT Lab_ELAP_CertID, Lab_Sample_ID, Composite_YN, State_Sample_ID, PS_Code, Collection_Date,  Collection_Time, Sample_Type, Lab_Receipt_Date, Collector_Name, Analyte_Name, Analyte_Code, Analysis_Start_Date, Analysis_Start_Time,  Analysis_Complete_Date, Analysis_Complete_Time, Analysis_Method_Code, Less_Than_Indicator, Reporting_Level, Reporting_Level_Units, Result, Result_Units, Analysis_Comments1, Batch, Sample_ID, MDL, MRL, Recovery, RPD, Qualifiers
+#           FROM targeted_analysis
+#           WHERE 
+#           "
+# )
+```
+
+### Response Level Exceedance Report
+
+```{r}
+
+# # https://duckdb.org/docs/sql/statements/create_view.html
+# 
+# # dbplyr (to generate SQL)
+# 
+# # create query ----
+# query_view_response_level <- con_table_targeted %>% 
+#     # selecte fields from the targeted analysis table
+#     select(PS_Code, Lab_Sample_ID, Batch, Analyte_Name, 
+#            Collection_Date, Collection_Date_Formatted,
+#            Collection_DateTime_Formatted, 
+#            Analysis_Start_DateTime_Formatted,
+#            Analysis_Complete_DateTime_Formatted,
+#            Result, Result_Units) %>% 
+#     # format Result column as numeric
+#     mutate(Result = if_else(Result == 'ND',
+#                             '0',
+#                             Result)) %>%
+#     mutate(Result = as.numeric(Result)) %>%
+#     # mutate(Result = 
+#     #            sql("(CAST(CASE WHEN (Result = 'ND') THEN '0' WHEN NOT (Result = 'ND') THEN Result END AS NUMERIC))")) %>% 
+#     # get threshold values
+#     inner_join(con_table_pfas_thresholds %>% 
+#                    select(Analyte_Name, Response_Level) %>% 
+#                    filter(!is.na(Response_Level)),
+#                by = c('Analyte_Name')
+#     ) %>%
+#     # # check for exceedance
+#     # mutate(Public_Health_Goal_Exceedance = case_when(
+#     #     Result > Public_Health_Goal ~ 'Yes', 
+#     #     Result < Public_Health_Goal ~ 'No', 
+#     #     .default = NA)) %>%
+#     # filter for exceedance
+#     # filter(Public_Health_Goal_Exceedance == 'Yes') %>% 
+#     filter(Result > Response_Level) %>% 
+#     # get well info
+#     left_join(con_table_well_list, 
+#               by = c('PS_Code')) %>% 
+#     # extract SQL query
+#     db_sql_render(con = con_db_pfas) %>%
+#     as.character()
+#     ## check (view results - to use, comment out above 2 lines and un-comment line below)
+#     # collect() %>% View()
+# 
+# # format query (for output to file) ----
+# query_view_response_level <- glue('
+#                  /*
+#                  NOTE: This query is automatically generated using the dbplyr R package, 
+#                  from code contained in the 01_create_PFAS_duckdb_database.qmd file.
+#                  */
+# 
+#                  CREATE VIEW exceedance_report_response_level AS
+#                  {query_view_response_level}')
+# 
+# # create view in database ----
+# dbExecute(con_db_pfas, 
+#           query_view_response_level)
+# 
+# ## write query to file ----
+# write_lines(query_view_response_level,
+#             here('04_generated_SQL_queries',
+#                  'duckdb',
+#                  'create_view-duckdb-exccedance_report-response_level.sql'))
+```
+
+
+### Exceedance Report Function
+
+```{r}
+
+# https://duckdb.org/docs/sql/statements/create_view.html
+
+# dbplyr (to generate SQL)
+
+# create query ----
+create_view_query <- function(threshold_field_name, view_name) {
+    
+    query_create_view <- con_table_targeted %>% 
+        # select fields from the targeted analysis table
+        select(PS_Code, Lab_Sample_ID, Batch, Analyte_Name, 
+               Collection_Date, Collection_Date_Formatted,
+               Collection_DateTime_Formatted, 
+               Analysis_Start_DateTime_Formatted,
+               Analysis_Complete_DateTime_Formatted,
+               Result, Result_Units) %>% 
+        # format Result column as numeric
+        mutate(Result = if_else(Result == 'ND',
+                                '0',
+                                Result)) %>%
+        mutate(Result = as.numeric(Result)) %>%
+        # get threshold values
+        inner_join(con_table_pfas_thresholds %>% 
+                       select(Analyte_Name, {{threshold_field_name}}) %>% 
+                       filter(!is.na({{threshold_field_name}})),
+                   by = c('Analyte_Name')
+        ) %>%
+        # filter for exceedance
+        filter(Result > {{threshold_field_name}}) %>% 
+        # get well info
+        left_join(con_table_well_list, 
+                  by = c('PS_Code')) %>% 
+        # extract SQL query
+        db_sql_render(con = con_db_pfas) %>%
+        as.character()
+    
+    # format query (for output to file) ----
+    query_create_view <- glue('
+                 /*
+                 NOTE: This query is automatically generated using the dbplyr R package, 
+                 from code contained in the 01_create_PFAS_duckdb_database.qmd file.
+                 */
+
+                 CREATE VIEW {view_name} AS
+                 {query_create_view}')
+}
+```
+
+
+#### Response Level
+
+```{r}
+# create Response Level exceedence report (view)
+
+# create query
+query_view_response_level <- create_view_query(
+    threshold_field_name = 'Response_Level', 
+    view_name = 'exceedance_report_response_level'
+) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_response_level)
+
+## write query to file ----
+write_lines(query_view_response_level, 
+            here('04_generated_SQL_queries', 
+                 'duckdb',
+                 'create-view_duckdb_exccedance-report_response-level.sql'))
+```
+
+
+#### Notification Level
+
+```{r}
+# create Notification Level exceedence report (view)
+
+# create query
+query_view_notification_level <- create_view_query(
+    threshold_field_name = 'Notification_Level', 
+    view_name = 'exceedance_report_notification_level'
+) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_notification_level)
+
+## write query to file ----
+write_lines(query_view_response_level, 
+            here('04_generated_SQL_queries', 
+                 'duckdb',
+                 'create-view_duckdb_exccedance-report_notification-level.sql'))
+```
+
+
+#### CCRDL (Consumer Confidence Report Detection Level)
+
+```{r}
+# create Consumer Confidence Report Detection Level exceedence report (view)
+
+# create query
+query_view_ccr_level <- create_view_query(
+    threshold_field_name = 'Consumer_Confidence_Report_Detection_Level', 
+    view_name = 'exceedance_report_CCRDL'
+    ) 
+
+# create view in database ----
+dbExecute(con_db_pfas, 
+          query_view_ccr_level)
+
+## write query to file ----
+write_lines(query_view_ccr_level, 
+            here('04_generated_SQL_queries', 
+                 'duckdb',
+                 'create-view_duckdb_exccedance-report_CCR-detection-level.sql'))
+```
+
+## Append Data to Tables
+
+### PFAS Thresholds
+
+```{r}
+
+# define file name
+file_name_load <- 'pfas_thresholds.csv'
+
+# read data
+df_pfas_thresholds <- read_csv(here('01_data_input', 
+                                    file_name_load), 
+                               col_types = cols(.default = col_character()),
+                               na = c('', 'NA', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_pfas_thresholds)
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'PFAS_thresholds', 
+              value = df_pfas_thresholds)
+
+# number of records
+con_table_pfas_thresholds %>% summarize(count = n()) %>% pull(count)
+```
+
+### Well List
+
+#### Original List
+
+```{r}
+
+# define file name
+file_name_load <- 'Example Well List_04152024.csv'
+
+# read data
+df_well_list <- read_csv(here('01_data_input', 
+                              file_name_load), 
+                         col_types = cols(.default = col_character()),
+                         na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_well_list)
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'well_list', 
+              value = df_well_list)
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+#### Updates (9 Wells)
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Well List_9 wells.csv'
+
+# read data
+df_well_list_2 <- read_csv(here('01_data_input', 
+                                file_name_load), 
+                           col_types = cols(.default = col_character()),
+                           na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+# # remove duplicate well
+# df_well_list_2 <- df_well_list_2 %>% 
+#     filter(PS_Code != 'CA1010007_204_204')
+
+glimpse(df_well_list_2)
+
+# load data - !!!! FAILS IF THERE ARE DUPLICATE PS CODES !!!!
+dbAppendTable(conn = con_db_pfas,
+              name = 'well_list',
+              value = df_well_list_2)
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+##### Upsert
+
+```{r}
+
+# https://stackoverflow.com/questions/76909034/fast-upsert-into-duckdb
+
+upsert_db <- function(con, data) {
+  # create an empty table matching well_list
+  ct <- "CREATE OR REPLACE TEMP TABLE stg as 
+  SELECT * FROM well_list WHERE 1 = 2"
+
+  dbExecute(con, ct)
+  dbAppendTable(con, "stg", data)
+
+  # merge the data between the two tables
+  iq <- "INSERT INTO well_list
+    select * from stg
+    ON CONFLICT (PS_Code)
+    DO UPDATE SET PWS_population = excluded.PWS_population, PWS_number_service_connection = excluded.PWS_number_service_connection;"
+  rr <- dbExecute(con, iq)
+
+  # drop the source merge table
+  dq <- "DROP TABLE stg"
+  dbExecute(con, dq)
+  rr
+}
+
+upsert_db(con_db_pfas, df_well_list_2)
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+
+dbListTables(con_db_pfas)
+
+# check ----
+con_table_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # what's in the DB
+df_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # original list
+df_well_list_2 %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # 9 wells list
+```
+
+
+```{r, chunk-wells-upsert}
+
+# https://dbplyr.tidyverse.org/reference/rows-db.html
+# https://www.sqlite.org/lang_upsert.html
+
+# # upsert ----
+# rows_upsert(con_table_well_list, 
+#             copy_inline(con_db_pfas, 
+#                         df_well_list_2), 
+#             in_place = TRUE)
+# 
+# # check ----
+# con_table_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # what's in the DB
+# df_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # original list
+# df_well_list_2 %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # 9 wells list
+```
+
+### Targeted Analysis
+
+#### AOF
+
+```{r, chunk-load-AOF-1}
+
+# define file name
+file_name_load <- 'Example C3J4257 AOF (CLIP+) CA0707625.csv'
+
+# read data
+df_aof_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = c('', 'NA')) %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>%
+    {.}
+
+# check
+glimpse(df_aof_1)
+
+# # get keys 
+# df_aof_1 %>% 
+#     mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+#     mutate(file_name = file_name_load) %>% 
+#     select(key, file_name) %>% 
+#     write_csv(here('AOF_keys.csv'))
+#     # View()
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+             name = 'targeted_analysis', 
+             value = df_aof_1)
+```
+
+```{r, chunk-load-AOF-2}
+
+# # define file name
+# file_name_load <- 'Example CK33001 AOF (CLIP+) CA3310037.csv'
+# 
+# # read data
+# df_aof_2 <- read_csv(here('01_data_input', 
+#                           file_name_load), 
+#                      col_types = cols(.default = col_character()), 
+#                      na = '') %>%
+#     # convert to UTF-8
+#     mutate(across(where(is.character),
+#                   ~iconv(., to = 'UTF-8'))) %>%
+#     # add file name
+#     # mutate(File_Name = file_name_load) %>%
+#     {.}
+# 
+# # check
+# glimpse(df_aof_2)
+# 
+# # get keys 
+# df_aof_2 %>% 
+#     mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+#     mutate(file_name = file_name_load) %>% 
+#     select(key, file_name) %>% 
+#     write_csv(here('01_data_input', '_AOF_keys.csv'),
+#               append = TRUE)
+#     # View()
+# 
+# # load data
+# dbAppendTable(conn = con_db_pfas, 
+#               name = 'targeted_analysis', 
+#               value = df_aof_2)
+```
+
+#### 533
+
+```{r, chunk-load-533-1}
+
+# define file name
+file_name_load <- 'Example CK06046 533 (CLIP+) CA3310037.csv'
+
+# read data
+df_533_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_533_1)
+
+# load data
+dbAppendTable(conn = con_db_pfas, 
+              name = 'targeted_analysis', 
+              value = df_533_1)
+
+# number of records
+con_table_targeted %>% summarize(count = n()) %>% pull(count)
+```
+
+
+### Non-Targeted Analysis
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example 3K06046_NTA_533_EDD_Rev1.csv'
+
+# read data
+df_nta_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_nta_1)
+
+dbAppendTable(conn = con_db_pfas, 
+              name = 'non_targeted_analysis', 
+              value = df_nta_1)
+
+con_table_nta %>% summarize(count = n()) %>% pull(count)
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example 4K00000_NTA_533_EDD.csv'
+
+# read data
+df_nta_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_nta_2)
+
+dbAppendTable(conn = con_db_pfas, 
+              name = 'non_targeted_analysis', 
+              value = df_nta_2)
+
+con_table_nta %>% summarize(count = n()) %>% pull(count)
+```
+
+
+### Field Data
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Water Quality Field Data File 2024.04.10a.csv'
+
+# read data
+df_field_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_field_1)
+
+dbAppendTable(conn = con_db_pfas, 
+              name = 'field_data', 
+              value = df_field_1)
+
+con_table_field %>% summarize(count = n()) %>% pull(count)
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Water Quality Field Data File 9 wells.csv'
+
+# read data
+df_field_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_field_2)
+
+dbAppendTable(conn = con_db_pfas, 
+              name = 'field_data', 
+              value = df_field_2)
+
+con_table_field %>% summarize(count = n()) %>% pull(count)
+```
+
+
+## Disconnect
+
+Close database connection.
+
+```{r, chunk-db-disconnect}
+
+dbDisconnect(con_db_pfas)
+```

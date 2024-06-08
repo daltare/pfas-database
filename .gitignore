@@ -65,8 +65,11 @@ _ignore/
 
 
 # Project Specific Files / Folders --------
-00_reference/
-03_data_output/*.csv
-01_data_input
-02_scripts
-03_database
+**.csv
+**.pptx
+**.accdb
+**.laccdb
+**.duckdb
+**.sqlite
+02_database/*/*.sql
+

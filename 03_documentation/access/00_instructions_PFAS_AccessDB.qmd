@@ -1,0 +1,103 @@
+---
+title: "PFAS Access Database - Instructions and Business Rules"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+## Background {#sec-background}
+
+This document describes how to use the MS Access database to manage PFAS data collected as part of a monitoring effort coordinated by the California State Water Resources Control Board.
+
+## Importing Data
+
+Use the following steps to import data from a CSV file:
+
+1.  If the name of the first field / column in the CSV file contains a `#`, manually remove it and save the modified file before uploading.
+
+2.  Open the Access database GUI (double click on the `.accdb` file)
+
+3.  Go to the `External Data` menu at the top of the window, then select `New Data Source` ➝ `From File` ➝ `Text File`
+
+    ![](screenshots/Data_Import_Step1.png){width="332"}
+
+4.  In the `Get External Data - Text File` window, browse to the csv file to be uploaded. Then, select the option `Append a copy of the records to the table` and select the corresponding table from the dropdown list. Click the `Ok` button to continue.
+
+    ![](screenshots/Data_Import_Step2.png){width="486"}
+
+5.  In the `Import Text Wizard` window, select the `Delimited` option and click the `Next >` button.
+
+    ![](screenshots/Data_Import_Step3.png){width="496"}
+
+6.  In the next window of the `Import Text Wizard`, select `Comma` as the delimiter, check the box that says `First Row Contains Field Names`, and in the `Text Qualifier` dropdown menu select `"` , then click the `Next >` button.
+
+    ![](screenshots/Data_Import_Step4.png){width="495"}
+
+7.  (Optional) If date formatting causes an issue with an import, you can used the `Advanced` button in the *Data Import Wizard* to select the date format of the input file (**NOTE:** you'll probably have to look at the CSV file in a text editor to determine the format of the date field(s); Excel doesn't necessarily display the dates in the way they are stored in the CSV file).
+
+    ![](screenshots/Data_Import_Advanced.png){width="510"}
+
+8.  In the next window, click the `Finish` button.
+
+    ![](screenshots/Data_Import_Step5.png){width="433"}
+
+9.  If there are any problems, you should get a popup window that briefly explains the issues (generally this starts with the message *"Microsoft Access was unable to append all the data to the table")* and gives you an option to proceed with the import or cancel it.
+
+    1.  If there are problems converting some of the data to the correct type, you'll see a message that says: "*the contents of fields in \## record(s) were deleted*". Often, this just occurs because there is a missing / `NULL` / `NA` value in a numeric field, so in general it's okay to proceed with the update even if this error is shown. In these cases, sometimes a new table will be added (in the 'All Access Objects' panel on the left side of the window), which will list each field / row where this issue occurred.
+
+        ![](screenshots/Data_Import_Warning1_TypeConversion.png)
+
+    2.  If there is are duplicate records detected (i.e., a primary key violation), you'll see a warning message that says "*\## records were lost due to key violations*". If you opt to proceed, the duplicate records are not imported to the database, but the rest of records are imported (**NOTE:** the `UploadDateTime` field may be useful in these cases to determine which records were duplicates / not uploaded); if you opt to cancel the import, none of the records will be uploaded.
+
+        ![](screenshots/Data_Import_Warning2_KeyViolation.png)
+
+## Business Rules
+
+-   In general, there should be no `NULL` values in the `PS_Code` field for any monitoring data (both field and lab). This enables verification that each record in the monitoring data we receive corresponds to a valid record in the well list table.
+
+    -   For all monitoring data received from the lab (targeted and non-targeted analysis), the `PS_Code` field for QA/QC records should have the value: `Lab QC`.
+
+    -   The well list table should include one record with `PS_Code` equal to `Lab QC` (other fields for this record can be left blank or filled in as needed).
+
+-   For all tables, fields used to determine unique records (i.e., fields used as a primary key) should never have any `NULL` values. If needed, use a placeholder value in these fields for standard data (e.g., `Lab QC` for QA/QC data). These fields include:
+
+    -   Targeted Analysis: `Lab_Sample_ID`, `State_Sample_ID`, `Batch`, `Analyte_Name`
+
+    -   Non-Targeted Analysis: `Lab_Sample_ID`, `State_Sample_ID`, `Batch`, `Analyte_Name`
+
+    -   Field: `PS_Code`, `field_data_id` (?), `field_visit_id` (?)
+
+    -   Well List: `PS_Code`
+
+    -   PFAS Thresholds: `Analyte_Name`
+
+-   Field names should always be consistent. In general, field names used in this project use the following naming conventions:
+
+    -   No spaces – underscores are used in place of spaces as needed
+
+    -   Title case – capitalize the first letter of each word (field data is an exception to this rule; it uses all lower case names)
+
+-   Date fields should always use consistent formatting, as follows:
+
+    -   Lab data (targeted and non-targeted) should always use `YYYY/MM/DD` format (**NOTE:** this is the format used in initial example files from the lab)
+
+    -   Field data should always use `???` format (**NOTE:** example files use `MM/DD/YYYY` format
+
+-   Numeric fields should only include numeric values – these fields include:
+
+    -   Targeted Analysis: `Reporting_Level` , `MDL`, `MRL`, `Recovery`, and `RPD`
+
+        -   **NOTE:** the `Result` field may include non-numeric values like `ND`, so is not treated as a numeric field
+
+    -   Non-Targeted Analysis:
+
+    -   Field:

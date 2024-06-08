@@ -1,0 +1,688 @@
+---
+title: "PFAS Database - Access"
+format: 
+  html:
+    self-contained: true 
+  # gfm: default
+format-links: false
+number-sections: true
+toc: true
+toc-depth: 3
+execute:
+  eval: false
+  message: false
+  warning: false
+---
+
+```{=html}
+<!-- 
+DOCUMENT NOTES:
+  --- To render all formats, use "quarto render document_name.qmd" on the command line 
+  (make sure that the terminal is opened in the directory that contains the document).
+  For more info, see: https://quarto.org/docs/output-formats/html-multi-format.html 
+  --- The code in this file is generally meant to be executed interactively. When the
+  "eval:" option is set to "false" above, none of the code is executed when the 
+  document is rendered (to execute all of the code, either run it interactively, 
+  or set the "eval:" option to "true")
+  -->
+```
+
+
+## Background {#sec-background}
+
+This document describes how to append data to tables in the MS Access PFAS database via R code. 
+
+The database stores data collected as part of an effort coordinated by the [CA State Water Resources Control Board](https://waterboards.ca.gov/) to monitor PFAS in drinking water wells.
+
+This database includes the following tables:
+
+- `well_list` -- information about wells included in the study
+- `PFAS_thresholds` -- regulatory thresholds for different classes of PFAS chemicals
+- `targeted_analysis` -- lab analysis of samples for specific analytes
+- `non_targeted_analysis` -- lab analysis of samples for a suite of analytes
+- `field_data` -- field observations taken during sample collection
+
+## Setup {#sec-setup}
+
+Load packages and set options:
+
+```{r, chunk-setup}
+
+# packages ----
+library(odbc)
+library(DBI) # loads RSQLite
+library(duckdb)
+library(tidyverse)
+library(dbplyr)
+library(here)
+library(glue)
+library(RODBC)
+
+# conflicts ----
+library(conflicted)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dbplyr::sql)
+
+# options ----
+options(scipen = 999) # turn off scientific notation
+```
+
+## Connect to Database {#sec-create-db}
+
+This connects to a database that has already been configured (e.g., tables and views have been created and specified).
+
+```{r, chunk-create-db}
+#| message: false
+#| warning: false
+
+
+db_path <- here('03_database',
+                'access_test', 
+                # 'pfas_db_test.accdb'
+                'test_1_manual_uploads.accdb'
+                )
+
+con_db_pfas <- odbc::dbConnect(drv = odbc(), 
+                          .connection_string = paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",
+                                                      db_path,
+                                                      ";"))
+
+```
+
+Set up RODBC connection (may not be needed):
+
+```{r}
+
+db_con_string = paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",
+                                                      db_path,
+                                                      ";")
+db_channel <- odbcDriverConnect(db_con_string)
+```
+
+
+### Connect to Tables {#sec-database-connections-tables}
+
+```{r}
+#| message: false
+#| warning: false
+
+con_table_pfas_thresholds <- tbl(con_db_pfas,
+                                 'PFAS_thresholds')
+
+con_table_well_list <- tbl(con_db_pfas,
+                           'well_list')
+
+con_table_targeted <- tbl(con_db_pfas,
+                          'targeted_analysis')
+
+con_table_nta <- tbl(con_db_pfas,
+                     'non_targeted_analysis')
+
+con_table_field <- tbl(con_db_pfas,
+                       'field_data')
+
+```
+
+
+### Connect to Views
+
+```{r}
+
+con_view_response_level <- tbl(con_db_pfas, 
+                               'exceedance_report_response_level')
+con_view_public_notification_level <- tbl(con_db_pfas, 
+                                          'exceedance_report_notification_level')
+con_view_ccr_level <- tbl(con_db_pfas, 
+                          'exceedance_report_CCRDL')
+con_view_public_health_goal <- tbl(con_db_pfas, 
+                                   'exceedance_report_public_health_goal')
+```
+
+
+## Get Database Info
+
+```{r, chunk-db-tools}
+
+# # list tables ----
+dbListTables(con_db_pfas)
+# 
+# # number of records ----
+# ## method 1
+# dim(dbReadTable(con_db_pfas, 'well_list'))
+# ## method 2 
+# dbGetQuery(con_db_pfas, "SELECT COUNT(*) FROM targeted_analysis")[1,1]
+# ## method 3
+# con_table_well_list %>% summarize(count = n()) %>% pull(count)
+# 
+# # drop table ----
+# sqlDrop(db_channel, 'targeted_analysis')
+```
+
+
+
+## Append Data to Tables
+
+### PFAS Thresholds
+
+```{r}
+
+# define file name
+file_name_load <- 'pfas_thresholds.csv'
+
+# read data
+df_pfas_thresholds <- read_csv(here('01_data_input', 
+                                    file_name_load), 
+                               col_types = cols(.default = col_character()),
+                               na = c('', 'NA', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_pfas_thresholds)
+# View(df_pfas_thresholds)
+
+# df_pfas_thresholds <- df_pfas_thresholds %>% 
+#     mutate(across(everything(), as.character)) %>% 
+#     mutate(across(everything(), ~ replace_na(data = ., replace = '')))
+
+
+# load data
+dbWriteTable(conn = con_db_pfas, 
+             name = 'PFAS_thresholds', 
+             value = df_pfas_thresholds, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# read data
+df_check <- dbGetQuery(con_db_pfas, 'SELECT * FROM PFAS_thresholds')
+
+# number of records
+con_table_pfas_thresholds %>% summarize(count = n()) %>% pull(count)
+```
+
+### Well List
+
+#### Original List
+
+```{r}
+
+# define file name
+file_name_load <- 'Example Well List_04152024.csv'
+
+# read data
+df_well_list <- read_csv(here('01_data_input', 
+                              file_name_load), 
+                         col_types = cols(.default = col_character()),
+                         na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_well_list)
+
+# load data
+# dbAppendTable(conn = con_db_pfas, 
+#               name = 'well_list', 
+#               value = df_well_list)
+dbWriteTable(conn = con_db_pfas, 
+             name = 'well_list', 
+             value = df_well_list, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# read data
+df_check <- dbGetQuery(con_db_pfas, 'SELECT * FROM well_list')
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+#### Updates (9 Wells)
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Well List_9 wells.csv'
+
+# read data
+df_well_list_2 <- read_csv(here('01_data_input', 
+                                file_name_load), 
+                           col_types = cols(.default = col_character()),
+                           na = c('', 'NULL')) %>% # NOTE: Have to include NULL to treat well specs as numeric 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>%
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+# remove duplicate well
+# df_well_list_2 <- df_well_list_2 %>%
+#     filter(PS_Code != 'CA1010007_204_204')
+
+glimpse(df_well_list_2)
+
+# load data - !!!! IF THERE ARE DUPLICATE PS CODES, ONLY LOADS THE UNIQUE ONES !!!!
+dbWriteTable(conn = con_db_pfas, 
+             name = 'well_list', 
+             value = df_well_list_2, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# read data
+df_check <- dbGetQuery(con_db_pfas, 'SELECT * FROM well_list')
+
+# number of records
+con_table_well_list %>% summarize(count = n()) %>% pull(count)
+```
+
+##### Upsert
+
+```{r}
+
+# # https://stackoverflow.com/questions/76909034/fast-upsert-into-duckdb
+# 
+# upsert_db <- function(con, data) {
+#   # create an empty table matching well_list
+#   ct <- "CREATE OR REPLACE TEMP TABLE stg as 
+#   SELECT * FROM well_list WHERE 1 = 2"
+# 
+#   dbExecute(con, ct)
+#   dbAppendTable(con, "stg", data)
+# 
+#   # merge the data between the two tables
+#   iq <- "INSERT INTO well_list
+#     select * from stg
+#     ON CONFLICT (PS_Code)
+#     DO UPDATE SET PWS_population = excluded.PWS_population, PWS_number_service_connection = excluded.PWS_number_service_connection;"
+#   rr <- dbExecute(con, iq)
+# 
+#   # drop the source merge table
+#   dq <- "DROP TABLE stg"
+#   dbExecute(con, dq)
+#   rr
+# }
+# 
+# upsert_db(con_db_pfas, df_well_list_2)
+# 
+# # number of records
+# con_table_well_list %>% summarize(count = n()) %>% pull(count)
+# 
+# dbListTables(con_db_pfas)
+# 
+# # check ----
+# con_table_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # what's in the DB
+# df_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # original list
+# df_well_list_2 %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # 9 wells list
+```
+
+
+```{r, chunk-wells-upsert}
+
+# https://dbplyr.tidyverse.org/reference/rows-db.html
+# https://www.sqlite.org/lang_upsert.html
+
+# # upsert ----
+# rows_upsert(con_table_well_list, 
+#             copy_inline(con_db_pfas, 
+#                         df_well_list_2), 
+#             in_place = TRUE)
+# 
+# # check ----
+# con_table_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # what's in the DB
+# df_well_list %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # original list
+# df_well_list_2 %>% filter(PS_Code == 'CA1010007_204_204') %>% glimpse() # 9 wells list
+```
+
+### Targeted Analysis
+
+#### AOF
+
+```{r, chunk-load-AOF-1}
+
+# define file name
+file_name_load <- 'Example C3J4257 AOF (CLIP+) CA0707625.csv'
+
+# read data
+df_aof_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = c('', 'NA')) %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>%
+    {.}
+
+# check
+glimpse(df_aof_1)
+
+# # get keys 
+# df_aof_1 %>% 
+#     mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+#     mutate(file_name = file_name_load) %>% 
+#     select(key, file_name) %>% 
+#     write_csv(here('AOF_keys.csv'))
+#     # View()
+
+# load data
+dbWriteTable(conn = con_db_pfas, 
+             name = 'targeted_analysis', 
+             value = df_aof_1, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# number of records
+con_table_targeted %>% summarize(count = n()) %>% pull(count)
+
+# read data
+df_check <- dbGetQuery(con_db_pfas, 'SELECT * FROM targeted_analysis')
+```
+
+```{r, chunk-load-AOF-2}
+
+# # define file name
+# file_name_load <- 'Example CK33001 AOF (CLIP+) CA3310037.csv'
+# 
+# # read data
+# df_aof_2 <- read_csv(here('01_data_input', 
+#                           file_name_load), 
+#                      col_types = cols(.default = col_character()), 
+#                      na = '') %>%
+#     # convert to UTF-8
+#     mutate(across(where(is.character),
+#                   ~iconv(., to = 'UTF-8'))) %>%
+#     # add file name
+#     # mutate(File_Name = file_name_load) %>%
+#     {.}
+# 
+# # check
+# glimpse(df_aof_2)
+# 
+# # get keys 
+# df_aof_2 %>% 
+#     mutate(key = paste(Lab_Sample_ID, PS_Code, Batch, Analyte_Name, sep = ' | ')) %>% 
+#     mutate(file_name = file_name_load) %>% 
+#     select(key, file_name) %>% 
+#     write_csv(here('01_data_input', '_AOF_keys.csv'),
+#               append = TRUE)
+#     # View()
+# 
+# # load data
+# dbWriteTable(conn = con_db_pfas, 
+#              name = 'targeted_analysis', 
+#              value = df_aof_2, 
+#              batch_rows = 1,
+#              append = TRUE
+# )
+```
+
+#### 533
+
+```{r, chunk-load-533-1}
+
+# define file name
+file_name_load <- 'C4D1588_DDW_533Plus_CA3210004_015_015_MODIFIED_HEADER.csv'
+
+# read data
+df_533_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+# convert dates
+df_533_1 <- df_533_1 %>%
+    mutate(Collection_Date = ymd(Collection_Date),
+           Lab_Receipt_Date = ymd(Lab_Receipt_Date),
+           Analysis_Start_Date = ymd(Analysis_Start_Date),
+           Analysis_Complete_Date = ymd(Analysis_Complete_Date)) 
+    
+# df_533_1 <- df_533_1 %>%
+#     mutate(Collection_Date = format(as.Date(Collection_Date),
+#                                     '%m/%d/%Y')) %>%
+#     mutate(Lab_Receipt_Date = format(as.Date(Lab_Receipt_Date),
+#                                      '%m/%d/%Y')) %>%
+#     mutate(Analysis_Start_Date = format(as.Date(Analysis_Start_Date),
+#                                         '%m/%d/%Y')) %>%
+#     mutate(Analysis_Complete_Date = format(as.Date(Analysis_Complete_Date),
+#                                            '%m/%d/%Y'))
+
+# convert numeric values
+df_533_1 <- df_533_1 %>%
+    mutate(Reporting_Level = as.numeric(Reporting_Level),
+           MDL = as.numeric(MDL),
+           MRL = as.numeric(MRL),
+           Recovery = as.numeric(Recovery),
+           RPD = as.numeric(RPD)
+    )
+
+glimpse(df_533_1)
+
+# load data
+dbWriteTable(conn = con_db_pfas, 
+             name = 'targeted_analysis', 
+             value = df_533_1, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# number of records
+con_table_targeted %>% summarize(count = n()) %>% pull(count)
+```
+
+
+```{r, chunk-load-533-2}
+
+# define file name
+file_name_load <- 'C4D1599_DDW_533Plus_CA3210004_013_013_MODIFIED_HEADER.csv'
+
+# read data
+df_533_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+# convert dates
+df_533_2 <- df_533_2 %>%
+    mutate(Collection_Date = ymd(Collection_Date),
+           Lab_Receipt_Date = ymd(Lab_Receipt_Date),
+           Analysis_Start_Date = ymd(Analysis_Start_Date),
+           Analysis_Complete_Date = ymd(Analysis_Complete_Date)) 
+    
+# df_533_2 <- df_533_2 %>%
+#     mutate(Collection_Date = format(as.Date(Collection_Date),
+#                                     '%m/%d/%Y')) %>%
+#     mutate(Lab_Receipt_Date = format(as.Date(Lab_Receipt_Date),
+#                                      '%m/%d/%Y')) %>%
+#     mutate(Analysis_Start_Date = format(as.Date(Analysis_Start_Date),
+#                                         '%m/%d/%Y')) %>%
+#     mutate(Analysis_Complete_Date = format(as.Date(Analysis_Complete_Date),
+#                                            '%m/%d/%Y'))
+
+# convert numeric values
+df_533_2 <- df_533_2 %>%
+    mutate(Reporting_Level = as.numeric(Reporting_Level),
+           MDL = as.numeric(MDL),
+           MRL = as.numeric(MRL),
+           Recovery = as.numeric(Recovery),
+           RPD = as.numeric(RPD)
+    )
+
+glimpse(df_533_2)
+
+# load data
+dbWriteTable(conn = con_db_pfas, 
+             name = 'targeted_analysis', 
+             value = df_533_2, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+# number of records
+con_table_targeted %>% summarize(count = n()) %>% pull(count)
+```
+
+### Non-Targeted Analysis
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example 3K06046_NTA_533_EDD_Rev1.csv'
+
+# read data
+df_nta_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_nta_1)
+
+dbWriteTable(conn = con_db_pfas, 
+             name = 'non_targeted_analysis', 
+             value = df_nta_1, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+con_table_nta %>% summarize(count = n()) %>% pull(count)
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example 4K00000_NTA_533_EDD.csv'
+
+# read data
+df_nta_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_nta_2)
+
+dbWriteTable(conn = con_db_pfas, 
+             name = 'non_targeted_analysis', 
+             value = df_nta_2, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+con_table_nta %>% summarize(count = n()) %>% pull(count)
+```
+
+
+### Field Data
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Water Quality Field Data File 2024.04.10a.csv'
+
+# read data
+df_field_1 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_field_1)
+
+dbWriteTable(conn = con_db_pfas, 
+             name = 'field_data', 
+             value = df_field_1, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+con_table_field %>% summarize(count = n()) %>% pull(count)
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+# define file name
+file_name_load <- 'Example Water Quality Field Data File 9 wells.csv'
+
+# read data
+df_field_2 <- read_csv(here('01_data_input', 
+                          file_name_load), 
+                     col_types = cols(.default = col_character()),
+                     na = '') %>% 
+    # convert to UTF-8
+    mutate(across(where(is.character),
+                  ~iconv(., to = 'UTF-8'))) %>% 
+    # add file name
+    # mutate(file_name = file_name_load) %>% 
+    {.}
+
+glimpse(df_field_2)
+
+dbWriteTable(conn = con_db_pfas, 
+             name = 'field_data', 
+             value = df_field_2, 
+             batch_rows = 1,
+             append = TRUE
+)
+
+con_table_field %>% summarize(count = n()) %>% pull(count)
+```
+
+
+## Disconnect
+
+Close database connection.
+
+```{r, chunk-db-disconnect}
+
+dbDisconnect(con_db_pfas)
+```
