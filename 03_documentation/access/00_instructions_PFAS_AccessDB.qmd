@@ -71,7 +71,7 @@ Use the following steps to import data from a CSV file:
 
         ![](screenshots/Data_Import_Warning1_TypeConversion.png)
 
-    2.  If there is are duplicate records detected (i.e., a primary key violation), you'll see a warning message that says "*\## records were lost due to key violations*". If you opt to proceed, the duplicate records are not imported to the database, but the rest of records are imported (**NOTE:** the `UploadDateTime` field may be useful in these cases to determine which records were duplicates / not uploaded); if you opt to cancel the import, none of the records will be uploaded.
+    2.  If there is are duplicate records detected (i.e., a primary key violation), you'll see a warning message that says "*\## records were lost due to key violations*". If you opt to proceed, the duplicate records are not imported to the database, but the rest of records are imported (**NOTE:** the `DB_Upload_DateTime` field may be useful in these cases to determine which records were duplicates / not uploaded); if you opt to cancel the import, none of the records will be uploaded.
 
         ![](screenshots/Data_Import_Warning2_KeyViolation.png)
 
