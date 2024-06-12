@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>PFAS Database - Access</title>
+<title>PFAS Access Database</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3082,7 +3082,7 @@ vertical-align: -.125em;
   <li><a href="#data-types" id="toc-data-types" class="nav-link" data-scroll-target="#data-types"><span class="header-section-number">2.2</span> Data Types</a></li>
   <li><a href="#sec-background-primary-keys" id="toc-sec-background-primary-keys" class="nav-link" data-scroll-target="#sec-background-primary-keys"><span class="header-section-number">2.3</span> Primary Keys</a></li>
   <li><a href="#sec-background-foreign-keys" id="toc-sec-background-foreign-keys" class="nav-link" data-scroll-target="#sec-background-foreign-keys"><span class="header-section-number">2.4</span> Foreign Keys</a></li>
-  <li><a href="#uploaddatetime-field" id="toc-uploaddatetime-field" class="nav-link" data-scroll-target="#uploaddatetime-field"><span class="header-section-number">2.5</span> UploadDateTime Field</a></li>
+  <li><a href="#db_upload_datetime-field" id="toc-db_upload_datetime-field" class="nav-link" data-scroll-target="#db_upload_datetime-field"><span class="header-section-number">2.5</span> DB_Upload_DateTime Field</a></li>
   <li><a href="#sql" id="toc-sql" class="nav-link" data-scroll-target="#sql"><span class="header-section-number">2.6</span> SQL</a></li>
   </ul></li>
   <li><a href="#sec-setup" id="toc-sec-setup" class="nav-link" data-scroll-target="#sec-setup"><span class="header-section-number">3</span> Setup</a></li>
@@ -3098,8 +3098,11 @@ vertical-align: -.125em;
   <li><a href="#sec-database-connections-tables" id="toc-sec-database-connections-tables" class="nav-link" data-scroll-target="#sec-database-connections-tables"><span class="header-section-number">6</span> Connect to Tables</a></li>
   <li><a href="#create-views-reports" id="toc-create-views-reports" class="nav-link" data-scroll-target="#create-views-reports"><span class="header-section-number">7</span> Create Views (Reports)</a>
   <ul class="collapse">
-  <li><a href="#exceedance-report-function" id="toc-exceedance-report-function" class="nav-link" data-scroll-target="#exceedance-report-function"><span class="header-section-number">7.1</span> Exceedance Report Function</a></li>
-  <li><a href="#connect-to-views" id="toc-connect-to-views" class="nav-link" data-scroll-target="#connect-to-views"><span class="header-section-number">7.2</span> Connect to Views</a></li>
+  <li><a href="#upload-report" id="toc-upload-report" class="nav-link" data-scroll-target="#upload-report"><span class="header-section-number">7.1</span> Upload Report</a></li>
+  <li><a href="#targeted-analysis-upload-report" id="toc-targeted-analysis-upload-report" class="nav-link" data-scroll-target="#targeted-analysis-upload-report"><span class="header-section-number">7.2</span> Targeted Analysis Upload Report</a></li>
+  <li><a href="#non-targeted-analysis-nta-upload-report" id="toc-non-targeted-analysis-nta-upload-report" class="nav-link" data-scroll-target="#non-targeted-analysis-nta-upload-report"><span class="header-section-number">7.3</span> Non-Targeted Analysis (NTA) Upload Report</a></li>
+  <li><a href="#exceedance-reports" id="toc-exceedance-reports" class="nav-link" data-scroll-target="#exceedance-reports"><span class="header-section-number">7.4</span> Exceedance Reports</a></li>
+  <li><a href="#connect-to-views" id="toc-connect-to-views" class="nav-link" data-scroll-target="#connect-to-views"><span class="header-section-number">7.5</span> Connect to Views</a></li>
   </ul></li>
   <li><a href="#get-check-database-info" id="toc-get-check-database-info" class="nav-link" data-scroll-target="#get-check-database-info"><span class="header-section-number">8</span> Get / Check Database Info</a></li>
   <li><a href="#disconnect" id="toc-disconnect" class="nav-link" data-scroll-target="#disconnect"><span class="header-section-number">9</span> Disconnect</a></li>
@@ -3110,7 +3113,8 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">PFAS Database - Access</h1>
+<h1 class="title">PFAS Access Database</h1>
+<p class="subtitle lead">Database Documentation</p>
 </div>
 
 
@@ -3228,9 +3232,9 @@ Note
 <p>Assigning a foreign key will ensure that when a new record is entered into a given table, a record with the same value must already exist in a referenced field in another table. This ensures consistency for data that needs to be cross-referenced between tables.</p>
 <p>For example, for targeted, non-targeted, and field data tables, assigning the <code>PS_Code</code> field as a foreign key that references the <code>PS_Code</code> field in the <code>well_list</code> table will ensure that any monitoring data loaded to the database references a valid PS_Code value in the well list. In effect, that means that whenever a new well is added to the study, the information for that well must be added to the <code>well_list</code> table before any monitoring data for that well can be loaded to the database.</p>
 </section>
-<section id="uploaddatetime-field" class="level3" data-number="2.5">
-<h3 data-number="2.5" class="anchored" data-anchor-id="uploaddatetime-field"><span class="header-section-number">2.5</span> UploadDateTime Field</h3>
-<p>Each table includes an added field called <code>UploadDateTime</code>, which records the date/time when each record was imported to the database. This field may be useful for the following scenarios:</p>
+<section id="db_upload_datetime-field" class="level3" data-number="2.5">
+<h3 data-number="2.5" class="anchored" data-anchor-id="db_upload_datetime-field"><span class="header-section-number">2.5</span> DB_Upload_DateTime Field</h3>
+<p>Each table includes an added field called <code>DB_Upload_DateTime</code>, which records the date/time when each record was imported to the database. This field may be useful for the following scenarios:</p>
 <ul>
 <li>If there are any problems discovered with data imported from a certain file after it is loaded into a table in the database, this field can be used to find those records and alter or delete them.</li>
 <li>If there are records that are not imported due to a primary key (i.e., unique record) violation, this field can be used to help find which record(s) failed to import (by filtering records for the upload date/time when the violation occurred, then comparing those records with the complete set of records in the file, and finding which records in the file are not in the selected records in the database).</li>
@@ -3249,7 +3253,7 @@ Warning
 <p>The default value has to be manually assigned to each table by opening the database in MS Access, then:</p>
 <ul>
 <li>open the table in ‘<em>Design View</em>’</li>
-<li>select the <code>UploadDateTime</code> row (make sure you do this – if not, the <code>UploadDateTime</code> field will be blank, and the date/time will likely appear in the row of empty data in the first column of the table)</li>
+<li>select the <code>DB_Upload_DateTime</code> row (make sure you do this – if not, the <code>DB_Upload_DateTime</code> field will be blank, and the date/time will likely appear in the row of empty data in the first column of the table)</li>
 <li>in the ‘<em>Field Properties</em>’ box at the bottom of the screen type: <code>= Now()</code> in the ‘<em>Default Value</em>’ field.</li>
 <li>save and close the table</li>
 </ul>
@@ -3302,16 +3306,13 @@ Warning
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>db_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">&#39;02_database&#39;</span>,</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                <span class="st">&#39;access_test&#39;</span>, </span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                <span class="co"># &#39;pfas_db_test.accdb&#39;</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                <span class="co"># &#39;test_1_manual_uploads.accdb&#39;</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                <span class="co"># &#39;pfas-db-template_no-PK.accdb&#39;</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                <span class="st">&#39;pfas-db-template_with-PK.accdb&#39;</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                )</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>con_db_pfas <span class="ot">&lt;-</span> odbc<span class="sc">::</span><span class="fu">dbConnect</span>(<span class="at">drv =</span> <span class="fu">odbc</span>(), </span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>                          <span class="at">.connection_string =</span> <span class="fu">paste0</span>(<span class="st">&quot;Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=&quot;</span>,</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>                                                      db_path,</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>                                                      <span class="st">&quot;;&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                <span class="st">&#39;pfas-db-template.accdb&#39;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>con_db_pfas <span class="ot">&lt;-</span> odbc<span class="sc">::</span><span class="fu">dbConnect</span>(<span class="at">drv =</span> <span class="fu">odbc</span>(), </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                          <span class="at">.connection_string =</span> <span class="fu">paste0</span>(<span class="st">&quot;Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=&quot;</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                                                      db_path,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>                                                      <span class="st">&quot;;&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Set up RODBC connection (may not be needed):</p>
 <div class="cell">
@@ -3351,7 +3352,7 @@ Warning
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="st">          Consumer_Confidence_Report_Detection_Level DOUBLE,</span></span>
 <span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="st">          Notification_Level DOUBLE, </span></span>
 <span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="st">          Response_Level DOUBLE,</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="st">          UploadDateTime DATETIME</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="st">          DB_Upload_DateTime DATETIME</span></span>
 <span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="st">          )&quot;</span></span>
 <span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -3399,7 +3400,7 @@ Warning
 <span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="st">          Added TEXT,</span></span>
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="st">          Updated TEXT,</span></span>
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="st">          Changelog TEXT,</span></span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="st">          UploadDateTime DATETIME,</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="st">          DB_Upload_DateTime DATETIME,</span></span>
 <span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT PK_well_list</span></span>
 <span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="st">            PRIMARY KEY (PS_Code)</span></span>
 <span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="st">          )&quot;</span></span>
@@ -3502,16 +3503,14 @@ Note
 <span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="st">          Recovery DOUBLE,</span></span>
 <span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="st">          RPD DOUBLE,</span></span>
 <span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="st">          Qualifiers TEXT,</span></span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="st">          UploadDateTime DATETIME,</span></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT FK_targeted_analysis</span></span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="st">            FOREIGN KEY (PS_Code)</span></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="st">            REFERENCES well_list (PS_Code)</span></span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="st">          )&#39;</span></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>          )</span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="co"># primary key constraint (add to SQL statement above foreign key constraint):</span></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="co"># CONSTRAINT PK_targeted_analysis</span></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="co">#     PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="st">          DB_Upload_DateTime DATETIME,</span></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT PK_targeted_analysis</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="st">            PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),</span></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT FK_targeted_analysis</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="st">            FOREIGN KEY (PS_Code)</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="st">            REFERENCES well_list (PS_Code)</span></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="st">          )&#39;</span></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>          )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="non-targeted-analysis-nta-table" class="level3" data-number="5.4">
@@ -3557,30 +3556,31 @@ Note
 <span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="st">          Sample_Type TEXT,</span></span>
 <span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="st">          Batch TEXT,</span></span>
 <span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="st">          StudyFileID TEXT,</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="st">          Method TEXT,</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="st">          Analysis_Method_Code TEXT,</span></span>
 <span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="st">          Conf TEXT,</span></span>
 <span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="st">          Analyte_Name TEXT,</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="st">          DSSToxID TEXT,</span></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="st">          ExactMass DOUBLE,</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="st">          MZError DOUBLE,</span></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="st">          Formula TEXT,</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="st">          RT DOUBLE,</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="st">          Area TEXT, </span></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="st">          TcrRec DOUBLE,</span></span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="st">          Analyzed DATETIME, </span></span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="st">          MDL DOUBLE,</span></span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="st">          Res2MDL DOUBLE,</span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="st">          Qualifiers TEXT,</span></span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="st">          UploadDateTime DATETIME,</span></span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT FK_non_targeted_analysis</span></span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="st">            FOREIGN KEY (PS_Code)</span></span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="st">            REFERENCES well_list (PS_Code)</span></span>
-<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a><span class="st">          )&#39;</span></span>
-<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>          )</span>
-<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="co"># primary key constraint (add to SQL statement above foreign key constraint):</span></span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a><span class="co"># CONSTRAINT PK_non_targeted_analysis</span></span>
-<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a><span class="co">#   PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="st">          Analyte_Code TEXT,</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="st">          DSSToxID TEXT,</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="st">          ExactMass DOUBLE,</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="st">          MZError DOUBLE,</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="st">          Formula TEXT,</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="st">          RT DOUBLE,</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="st">          Area DOUBLE, </span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="st">          AreaCV DOUBLE,</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="st">          TcrRec DOUBLE,</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="st">          Analysis_Complete_Date TEXT,</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="st">          Analysis_Complete_Time TEXT,</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="st">          MDL DOUBLE,</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a><span class="st">          Res2MDL DOUBLE,</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="st">          Qualifiers TEXT,</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="st">          DB_Upload_DateTime DATETIME,</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT PK_non_targeted_analysis</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a><span class="st">            PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT FK_non_targeted_analysis</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="st">            FOREIGN KEY (PS_Code)</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a><span class="st">            REFERENCES well_list (PS_Code)</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a><span class="st">          )&#39;</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>          )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="field-data-table" class="level3" data-number="5.5">
@@ -3632,7 +3632,7 @@ Note
 <span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="st">          field_sediment TEXT,</span></span>
 <span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="st">          field_sediment_yes_desc TEXT,</span></span>
 <span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="st">          field_other_remarks TEXT,</span></span>
-<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="st">          UploadDateTime DATETIME,</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="st">          DB_Upload_DateTime DATETIME,</span></span>
 <span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT PK_field_data</span></span>
 <span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a><span class="st">            PRIMARY KEY (PS_Code, field_data_id, field_visit_id),</span></span>
 <span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="st">          CONSTRAINT FK_field_data</span></span>
@@ -3664,197 +3664,265 @@ Note
 </section>
 <section id="create-views-reports" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="create-views-reports"><span class="header-section-number">7</span> Create Views (Reports)</h2>
+<section id="upload-report" class="level3" data-number="7.1">
+<h3 data-number="7.1" class="anchored" data-anchor-id="upload-report"><span class="header-section-number">7.1</span> Upload Report</h3>
+<p>This section creates views (referred to as ‘Queries’ in MS Access) that summarize the targeted and non-targeted data loaded to the database.</p>
+</section>
+<section id="targeted-analysis-upload-report" class="level3" data-number="7.2">
+<h3 data-number="7.2" class="anchored" data-anchor-id="targeted-analysis-upload-report"><span class="header-section-number">7.2</span> Targeted Analysis Upload Report</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>upload_report_query_targeted <span class="ot">&lt;-</span> con_table_targeted <span class="sc">%&gt;%</span> </span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">count</span>(DB_Upload_DateTime, Batch, </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>          <span class="at">name =</span> <span class="st">&#39;Number_Of_Records&#39;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">db_sql_render</span>(<span class="at">con =</span> con_db_pfas) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.character</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_remove_all</span>(<span class="at">pattern =</span> <span class="st">&#39;`&#39;</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>upload_report_query_targeted <span class="ot">&lt;-</span> <span class="fu">glue</span>(<span class="st">&#39;CREATE VIEW upload_report_targeted AS {upload_report_query_targeted}&#39;</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># create view</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>          upload_report_query_targeted)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="do">## write to file ----</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(upload_report_query_targeted, </span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_upload-report_targeted.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="non-targeted-analysis-nta-upload-report" class="level3" data-number="7.3">
+<h3 data-number="7.3" class="anchored" data-anchor-id="non-targeted-analysis-nta-upload-report"><span class="header-section-number">7.3</span> Non-Targeted Analysis (NTA) Upload Report</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>upload_report_query_nta <span class="ot">&lt;-</span> con_table_nta <span class="sc">%&gt;%</span> </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">count</span>(DB_Upload_DateTime, Batch,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>          <span class="at">name =</span> <span class="st">&#39;Number_Of_Records&#39;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">db_sql_render</span>(<span class="at">con =</span> con_db_pfas) <span class="sc">%&gt;%</span> </span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.character</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_remove_all</span>(<span class="at">pattern =</span> <span class="st">&#39;`&#39;</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>upload_report_query_nta <span class="ot">&lt;-</span> <span class="fu">glue</span>(<span class="st">&#39;CREATE VIEW upload_report_non_targeted AS {upload_report_query_nta}&#39;</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co"># create view</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>          upload_report_query_nta)</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="do">## write to file ----</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(upload_report_query_nta, </span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_upload-report_non-targeted.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="exceedance-reports" class="level3" data-number="7.4">
+<h3 data-number="7.4" class="anchored" data-anchor-id="exceedance-reports"><span class="header-section-number">7.4</span> Exceedance Reports</h3>
 <p>This section creates views (referred to as ‘Queries’ in MS Access) that report all records that exceed one of the thresholds defined in the <code>PFAS_thresholds</code> table.</p>
-<section id="exceedance-report-function" class="level3" data-number="7.1">
-<h3 data-number="7.1" class="anchored" data-anchor-id="exceedance-report-function"><span class="header-section-number">7.1</span> Exceedance Report Function</h3>
 <p>The code below creates a generic function that generates the SQL query which creates a view (defined by the <code>report_view_name</code> parameter) for a given threshold value (defined by the <code>threshold_field_name</code> parameter).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>create_view_query <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                              <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>                              threshold_field_name, </span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>                              report_view_name) {</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># build SQL statement to query data for exceedences</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    query_view <span class="ot">&lt;-</span> <span class="fu">glue</span>(</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;SELECT </span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Lab_Sample_ID, </span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.PS_Code, </span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Collection_Date,</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Collection_Time,</span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Analyte_Name, </span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Result, </span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Result_Units, </span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="st">        {thresholds_table_name}.{threshold_field_name}, </span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="st">        IIf((CDbl([Result])&gt;CDbl([{threshold_field_name}]))&lt;0,&#39;Yes&#39;,&#39;No&#39;) AS Exceedence_YesNo</span></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="st">        FROM {thresholds_table_name} </span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="st">        INNER JOIN {results_table_name} ON {thresholds_table_name}.[Analyte_Name] = {results_table_name}.[Analyte_Name]</span></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="st">        WHERE ((({results_table_name}.Result)&lt;&gt;&#39;ND&#39;) </span></span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="st">        AND (({thresholds_table_name}.{threshold_field_name}) Is Not Null) </span></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="st">        AND ((IIf((CDbl([Result])&gt;CDbl([{threshold_field_name}]))&lt;0,&#39;Yes&#39;,&#39;No&#39;))=&#39;Yes&#39;));&quot;</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># add statement to create view</span></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    query_view <span class="ot">&lt;-</span> <span class="fu">glue</span>(<span class="st">&#39;CREATE VIEW {report_view_name} AS {query_view}&#39;</span>)</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># return the formateed SQL string</span></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(query_view)</span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Example - Raw SQL - Response Level</span></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="co"># query_view_RL &lt;- glue(</span></span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="co"># &quot;SELECT </span></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Lab_Sample_ID, </span></span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.PS_Code, </span></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Analyte_Name, </span></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Result, </span></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Result_Units, </span></span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a><span class="co"># PFAS_thresholds.Response_Level, </span></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="co"># IIf((CDbl([Result])&gt;CDbl([Response_Level]))&lt;0,&#39;Yes&#39;,&#39;No&#39;) AS Exceedence_YesNo</span></span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="co"># FROM PFAS_thresholds </span></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="co"># INNER JOIN targeted_analysis ON PFAS_thresholds.[Analyte_Name] = targeted_analysis.[Analyte_Name]</span></span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="co"># WHERE (((targeted_analysis.Result)&lt;&gt;&#39;ND&#39;) </span></span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="co">#     AND ((PFAS_thresholds.Response_Level) Is Not Null) </span></span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="co">#     AND ((IIf((CDbl([Result])&gt;CDbl([Response_Level]))&lt;0,&#39;Yes&#39;,&#39;No&#39;))=&#39;Yes&#39;));&quot;</span></span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="co"># )</span></span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="co"># query_view_RL &lt;- glue(&#39;CREATE VIEW exceedance_report_RL AS {query_view_RL}&#39;)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>create_view_query <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                              <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                              <span class="at">wells_table_name =</span> <span class="st">&#39;well_list&#39;</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                              threshold_field_name, </span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>                              report_view_name) {</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># build SQL statement to query data for exceedences</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    query_view <span class="ot">&lt;-</span> <span class="fu">glue</span>(</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;SELECT </span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Lab_Sample_ID, </span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.State_Sample_ID, </span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Batch, </span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Sample_Type,</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Collection_Date,</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Collection_Time,</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Analyte_Name, </span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Result, </span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="st">        {results_table_name}.Result_Units, </span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="st">        {thresholds_table_name}.{threshold_field_name}, </span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a><span class="st">        IIf((CDbl([Result])&gt;CDbl([{threshold_field_name}]))&lt;0,&#39;Yes&#39;,&#39;No&#39;) AS Exceedence_YesNo,</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="st">        {wells_table_name}.PWS_water_system_name, </span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="st">        {wells_table_name}.Well_facility_name, </span></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a><span class="st">        targeted_analysis.DB_Upload_DateTime</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="st">        FROM well_list INNER JOIN (</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a><span class="st">          PFAS_thresholds INNER JOIN </span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a><span class="st">          targeted_analysis ON PFAS_thresholds.[Analyte_Name] = targeted_analysis.[Analyte_Name]</span></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a><span class="st">          ) </span></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="st">          ON well_list.PS_Code = targeted_analysis.PS_Code</span></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="st">        WHERE (</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="st">        (({results_table_name}.Sample_Type)&lt;&gt;&#39;LCS&#39; </span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a><span class="st">            And ({results_table_name}.Sample_Type)&lt;&gt;&#39;MS&#39; </span></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="st">            And ({results_table_name}.Sample_Type)&lt;&gt;&#39;MSD&#39;) </span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a><span class="st">        AND (({results_table_name}.Result)&lt;&gt;&#39;ND&#39;)</span></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="st">        AND (({results_table_name}.Result)&lt;&gt;&#39;ND&#39;) </span></span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a><span class="st">        AND (({thresholds_table_name}.{threshold_field_name}) Is Not Null) </span></span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a><span class="st">        AND ((IIf((CDbl([Result])&gt;CDbl([{threshold_field_name}]))&lt;0,&#39;Yes&#39;,&#39;No&#39;))=&#39;Yes&#39;)</span></span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a><span class="st">        );&quot;</span></span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># add statement to create view</span></span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>    query_view <span class="ot">&lt;-</span> <span class="fu">glue</span>(<span class="st">&#39;CREATE VIEW {report_view_name} AS {query_view}&#39;</span>)</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># return the formateed SQL string</span></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(query_view)</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>                              }</span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Example - Raw SQL - Response Level</span></span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a><span class="co"># query_view_RL &lt;- glue(</span></span>
+<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a><span class="co"># &quot;SELECT </span></span>
+<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Lab_Sample_ID, </span></span>
+<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.PS_Code, </span></span>
+<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Analyte_Name, </span></span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Result, </span></span>
+<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a><span class="co"># targeted_analysis.Result_Units, </span></span>
+<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a><span class="co"># PFAS_thresholds.Response_Level, </span></span>
+<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a><span class="co"># IIf((CDbl([Result])&gt;CDbl([Response_Level]))&lt;0,&#39;Yes&#39;,&#39;No&#39;) AS Exceedence_YesNo</span></span>
+<span id="cb14-57"><a href="#cb14-57" aria-hidden="true" tabindex="-1"></a><span class="co"># FROM PFAS_thresholds </span></span>
+<span id="cb14-58"><a href="#cb14-58" aria-hidden="true" tabindex="-1"></a><span class="co"># INNER JOIN targeted_analysis ON PFAS_thresholds.[Analyte_Name] = targeted_analysis.[Analyte_Name]</span></span>
+<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a><span class="co"># WHERE (((targeted_analysis.Result)&lt;&gt;&#39;ND&#39;) </span></span>
+<span id="cb14-60"><a href="#cb14-60" aria-hidden="true" tabindex="-1"></a><span class="co">#     AND ((PFAS_thresholds.Response_Level) Is Not Null) </span></span>
+<span id="cb14-61"><a href="#cb14-61" aria-hidden="true" tabindex="-1"></a><span class="co">#     AND ((IIf((CDbl([Result])&gt;CDbl([Response_Level]))&lt;0,&#39;Yes&#39;,&#39;No&#39;))=&#39;Yes&#39;));&quot;</span></span>
+<span id="cb14-62"><a href="#cb14-62" aria-hidden="true" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb14-63"><a href="#cb14-63" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb14-64"><a href="#cb14-64" aria-hidden="true" tabindex="-1"></a><span class="co"># query_view_RL &lt;- glue(&#39;CREATE VIEW exceedance_report_RL AS {query_view_RL}&#39;)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<section id="response-level" class="level4" data-number="7.1.1">
-<h4 data-number="7.1.1" class="anchored" data-anchor-id="response-level"><span class="header-section-number">7.1.1</span> Response Level</h4>
+<section id="response-level" class="level4" data-number="7.4.1">
+<h4 data-number="7.4.1" class="anchored" data-anchor-id="response-level"><span class="header-section-number">7.4.1</span> Response Level</h4>
 <p>Create a view / query to report exceedences of the <em>Response Level</em> thresholds:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create &#39;Response Level&#39; Exceedence Report (view)</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>query_view_response_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(<span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">threshold_field_name =</span> <span class="st">&#39;Response_Level&#39;</span>, </span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_response_level&#39;</span>)</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co"># create view</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>          query_view_response_level)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="do">## write to file ----</span></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_response_level, </span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_RL.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create &#39;Response Level&#39; Exceedence Report (view)</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>query_view_response_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(<span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">wells_table_name =</span> <span class="st">&#39;well_list&#39;</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">threshold_field_name =</span> <span class="st">&#39;Response_Level&#39;</span>, </span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_response_level&#39;</span>)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co"># create view</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>          query_view_response_level)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="do">## write to file ----</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_response_level, </span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_RL.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="notification-level" class="level4" data-number="7.1.2">
-<h4 data-number="7.1.2" class="anchored" data-anchor-id="notification-level"><span class="header-section-number">7.1.2</span> Notification Level</h4>
+<section id="notification-level" class="level4" data-number="7.4.2">
+<h4 data-number="7.4.2" class="anchored" data-anchor-id="notification-level"><span class="header-section-number">7.4.2</span> Notification Level</h4>
 <p>Create a view / query to report exceedences of the <em>Notification Level</em> thresholds:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Notification Level exceedence report (view)</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create query</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>query_view_notification_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Notification_Level&#39;</span>, </span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_notification_level&#39;</span></span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>) </span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>          query_view_notification_level)</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_notification_level, </span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_notification-level.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section>
-<section id="ccrdl-consumer-confidence-report-detection-level" class="level4" data-number="7.1.3">
-<h4 data-number="7.1.3" class="anchored" data-anchor-id="ccrdl-consumer-confidence-report-detection-level"><span class="header-section-number">7.1.3</span> CCRDL (Consumer Confidence Report Detection Level)</h4>
-<p>Create a view / query to report exceedences of the <em>Consumer Confidence Report Detection Level</em> thresholds:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Consumer Confidence Report Detection Level exceedence report (view)</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create query</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>query_view_ccr_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Consumer_Confidence_Report_Detection_Level&#39;</span>, </span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_CCRDL&#39;</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>) </span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>          query_view_ccr_level)</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_ccr_level, </span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_CCR-detection-level.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section>
-<section id="public-health-goal" class="level4" data-number="7.1.4">
-<h4 data-number="7.1.4" class="anchored" data-anchor-id="public-health-goal"><span class="header-section-number">7.1.4</span> Public Health Goal</h4>
-<p>Create a view / query to report exceedences of the <em>Public_Health_Goal</em> thresholds:</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Public Health Goal report (view)</span></span>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Notification Level exceedence report (view)</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create query</span></span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>query_view_public_health_goal <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>query_view_notification_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Public_Health_Goal&#39;</span>, </span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_public_health_goal&#39;</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>) </span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>          query_view_public_health_goal)</span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_public_health_goal, </span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_public_health_goal.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">wells_table_name =</span> <span class="st">&#39;well_list&#39;</span>,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Notification_Level&#39;</span>, </span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_notification_level&#39;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>) </span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>          query_view_notification_level)</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_notification_level, </span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_notification-level.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="ccrdl-consumer-confidence-report-detection-level" class="level4" data-number="7.4.3">
+<h4 data-number="7.4.3" class="anchored" data-anchor-id="ccrdl-consumer-confidence-report-detection-level"><span class="header-section-number">7.4.3</span> CCRDL (Consumer Confidence Report Detection Level)</h4>
+<p>Create a view / query to report exceedences of the <em>Consumer Confidence Report Detection Level</em> thresholds:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Consumer Confidence Report Detection Level exceedence report (view)</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create query</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>query_view_ccr_level <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>, </span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">wells_table_name =</span> <span class="st">&#39;well_list&#39;</span>,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Consumer_Confidence_Report_Detection_Level&#39;</span>, </span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_CCRDL&#39;</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>) </span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>          query_view_ccr_level)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_ccr_level, </span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_CCR-detection-level.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="public-health-goal" class="level4" data-number="7.4.4">
+<h4 data-number="7.4.4" class="anchored" data-anchor-id="public-health-goal"><span class="header-section-number">7.4.4</span> Public Health Goal</h4>
+<p>Create a view / query to report exceedences of the <em>Public_Health_Goal</em> thresholds:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create Public Health Goal report (view)</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co"># create query</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>query_view_public_health_goal <span class="ot">&lt;-</span> <span class="fu">create_view_query</span>(</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">results_table_name =</span> <span class="st">&#39;targeted_analysis&#39;</span>, </span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">thresholds_table_name =</span> <span class="st">&#39;PFAS_thresholds&#39;</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">wells_table_name =</span> <span class="st">&#39;well_list&#39;</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold_field_name =</span> <span class="st">&#39;Public_Health_Goal&#39;</span>, </span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">report_view_name =</span> <span class="st">&#39;exceedance_report_public_health_goal&#39;</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>) </span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co"># create view in database ----</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="fu">dbExecute</span>(con_db_pfas, </span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>          query_view_public_health_goal)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="do">## write query to file ----</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="fu">write_lines</span>(query_view_public_health_goal, </span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>            <span class="fu">here</span>(<span class="st">&#39;04_generated_SQL_queries&#39;</span>, </span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;access&#39;</span>,</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>                 <span class="st">&#39;create-view_access_exccedance-report_public_health_goal.sql&#39;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
-<section id="connect-to-views" class="level3" data-number="7.2">
-<h3 data-number="7.2" class="anchored" data-anchor-id="connect-to-views"><span class="header-section-number">7.2</span> Connect to Views</h3>
+<section id="connect-to-views" class="level3" data-number="7.5">
+<h3 data-number="7.5" class="anchored" data-anchor-id="connect-to-views"><span class="header-section-number">7.5</span> Connect to Views</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>con_view_response_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                               <span class="st">&#39;exceedance_report_response_level&#39;</span>)</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>con_view_public_notification_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>                                          <span class="st">&#39;exceedance_report_notification_level&#39;</span>)</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>con_view_ccr_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>                          <span class="st">&#39;exceedance_report_CCRDL&#39;</span>)</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>con_view_public_health_goal <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>                                   <span class="st">&#39;exceedance_report_public_health_goal&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>con_view_response_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                               <span class="st">&#39;exceedance_report_response_level&#39;</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>con_view_public_notification_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>                                          <span class="st">&#39;exceedance_report_notification_level&#39;</span>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>con_view_ccr_level <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>                          <span class="st">&#39;exceedance_report_CCRDL&#39;</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>con_view_public_health_goal <span class="ot">&lt;-</span> <span class="fu">tbl</span>(con_db_pfas, </span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>                                   <span class="st">&#39;exceedance_report_public_health_goal&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
 <section id="get-check-database-info" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="get-check-database-info"><span class="header-section-number">8</span> Get / Check Database Info</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># # list tables ----</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dbListTables</span>(con_db_pfas)</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co"># # number of records ----</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 1</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co"># dim(dbReadTable(con_db_pfas, &#39;well_list&#39;))</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 2 </span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co"># dbGetQuery(con_db_pfas, &quot;SELECT COUNT(*) FROM targeted_analysis&quot;)[1,1]</span></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 3 (only works after creating table connections)</span></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="co"># con_table_well_list %&gt;% summarize(count = n()) %&gt;% pull(count)</span></span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co"># # drop table ----</span></span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co"># sqlDrop(db_channel, &#39;non_targeted_analysis&#39;)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># # list tables ----</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dbListTables</span>(con_db_pfas)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># # number of records ----</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 1</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co"># dim(dbReadTable(con_db_pfas, &#39;well_list&#39;))</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 2 </span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co"># dbGetQuery(con_db_pfas, &quot;SELECT COUNT(*) FROM targeted_analysis&quot;)[1,1]</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="co"># ## method 3 (only works after creating table connections)</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co"># con_table_well_list %&gt;% summarize(count = n()) %&gt;% pull(count)</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="co"># # drop table ----</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="co"># sqlDrop(db_channel, &#39;non_targeted_analysis&#39;)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="disconnect" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="disconnect"><span class="header-section-number">9</span> Disconnect</h2>
 <p>Close database connection.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dbDisconnect</span>(con_db_pfas)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dbDisconnect</span>(con_db_pfas)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 
