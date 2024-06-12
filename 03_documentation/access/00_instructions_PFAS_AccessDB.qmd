@@ -18,11 +18,17 @@ execute:
 
 This document describes how to use the MS Access database to manage PFAS data collected as part of a monitoring effort coordinated by the California State Water Resources Control Board.
 
-## Importing Data
+## Notes {#sec-notes}
+
+-   The database uses primary keys for all tables to ensure that duplicate data is not imported to the database, so when importing data some records may be rejected if they contain a combination of values in those fields that's identical to a record already in the database. See @sec-business-rules for more information on database rules used to implement this check.
+
+-   The database uses foreign keys to ensure that every monitoring record can be linked to one of the wells included in the study. This is done by ensuring that the `PS_Code` for each monitoring record corresponds to a record with the same `PS_Code` in the `well_list` table. In general, this means that the `well_list` table needs to be populated with information about the wells included in the study before any monitoring data (targeted, non-targeted, or field data) can be loaded into the database. And, if a new well is added to the study, its information has to be added to the `well_list` table before any monitoring data for that well can be imported. See @sec-business-rules for more information on database rules used to implement this check.
+
+## Instructions for Importing Data {#sec-instructions-data-import}
 
 Use the following steps to import data from a CSV file:
 
-1.  If the name of the first field / column in the CSV file contains a `#`, manually remove it and save the modified file before uploading.
+1.  If the name of the first field / column in the CSV file contains a `#` (this should only be the case for the 'targeted' data files), manually remove it and save the modified file before uploading.
 
 2.  Open the Access database GUI (double click on the `.accdb` file)
 
@@ -42,9 +48,17 @@ Use the following steps to import data from a CSV file:
 
     ![](screenshots/Data_Import_Step4.png){width="495"}
 
-7.  (Optional) If date formatting causes an issue with an import, you can used the `Advanced` button in the *Data Import Wizard* to select the date format of the input file (**NOTE:** you'll probably have to look at the CSV file in a text editor to determine the format of the date field(s); Excel doesn't necessarily display the dates in the way they are stored in the CSV file).
+7.  [**For non-targeted analysis (NTA) only:**]{.underline} To make sure the `Collection_Date` field is imported correctly, use the `Advanced` button in the *Data Import Wizard* to select the date format of the input file (**NOTE:** you'll probably have to look at the CSV file in a text editor to determine the format of date fields; Excel doesn't necessarily display the dates in the way they are stored in the CSV file).
 
-    ![](screenshots/Data_Import_Advanced.png){width="510"}
+    In the `Dates, Times, and Numbers` box select the following options (as shown in the screenshot below) then click the `OK` button:
+
+    1.  In the `Date Order` dropdown select: `YMD`
+
+    2.  In the `Date Delimiter` box type: `-` (dash)
+
+    3.  Check the box for `Leading Zeros in Dates`
+
+        ![](screenshots/Data_Import_Advanced_2.png){width="349"}
 
 8.  In the next window, click the `Finish` button.
 
@@ -60,7 +74,7 @@ Use the following steps to import data from a CSV file:
 
         ![](screenshots/Data_Import_Warning2_KeyViolation.png)
 
-## Business Rules
+## Business Rules {#sec-business-rules}
 
 -   In general, there should be no `NULL` values in the `PS_Code` field for any monitoring data (both field and lab). This enables verification that each record in the monitoring data we receive corresponds to a valid record in the well list table.
 
@@ -88,16 +102,18 @@ Use the following steps to import data from a CSV file:
 
 -   Date fields should always use consistent formatting, as follows:
 
-    -   Lab data (targeted and non-targeted) should always use `YYYY/MM/DD` format (**NOTE:** this is the format used in initial example files from the lab)
+    -   Targeted analysis uses `MM/DD/YYYY` format
 
-    -   Field data should always use `???` format (**NOTE:** example files use `MM/DD/YYYY` format
+    -   Non-targeted analysis uses `YYYY-MM-DD` format (**NOTE:** this is the format used for the `Collection_Date` field)
+
+    -   Field data uses `???` format (**NOTE:** example files use `MM/DD/YYYY` format)
 
 -   Numeric fields should only include numeric values – these fields include:
 
-    -   Targeted Analysis: `Reporting_Level` , `MDL`, `MRL`, `Recovery`, and `RPD`
+    -   Targeted Analysis: `Reporting_Level`, `MDL`, `MRL`, `Recovery`, `RPD`
 
         -   **NOTE:** the `Result` field may include non-numeric values like `ND`, so is not treated as a numeric field
 
-    -   Non-Targeted Analysis:
+    -   Non-Targeted Analysis: `ExactMass`, `MZError`, `RT`, `Area`, `AreaCV`, `TcrRec`, `MDL`, `Res2MDL`
 
     -   Field:

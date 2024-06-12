@@ -83,9 +83,9 @@ Assigning a foreign key will ensure that when a new record is entered into a giv
 
 For example, for targeted, non-targeted, and field data tables, assigning the `PS_Code` field as a foreign key that references the `PS_Code` field in the `well_list` table will ensure that any monitoring data loaded to the database references a valid PS_Code value in the well list. In effect, that means that whenever a new well is added to the study, the information for that well must be added to the `well_list` table before any monitoring data for that well can be loaded to the database.
 
-### UploadDateTime Field
+### DB_Upload_DateTime Field
 
-Each table includes an added field called `UploadDateTime`, which records the date/time when each record was imported to the database. This field may be useful for the following scenarios:
+Each table includes an added field called `DB_Upload_DateTime`, which records the date/time when each record was imported to the database. This field may be useful for the following scenarios:
 
 -   If there are any problems discovered with data imported from a certain file after it is loaded into a table in the database, this field can be used to find those records and alter or delete them.
 -   If there are records that are not imported due to a primary key (i.e., unique record) violation, this field can be used to help find which record(s) failed to import (by filtering records for the upload date/time when the violation occurred, then comparing those records with the complete set of records in the file, and finding which records in the file are not in the selected records in the database).
@@ -96,7 +96,7 @@ This field is created by the SQL statements below, but likely is not possible to
 The default value has to be manually assigned to each table by opening the database in MS Access, then:
 
 -   open the table in '*Design View*'
--   select the `UploadDateTime` row (make sure you do this -- if not, the `UploadDateTime` field will be blank, and the date/time will likely appear in the row of empty data in the first column of the table)
+-   select the `DB_Upload_DateTime` row (make sure you do this -- if not, the `DB_Upload_DateTime` field will be blank, and the date/time will likely appear in the row of empty data in the first column of the table)
 -   in the '*Field Properties*' box at the bottom of the screen type: `= Now()` in the '*Default Value*' field.
 -   save and close the table
 :::
@@ -143,10 +143,7 @@ First, manually create a new access database (right click -\> `New` -\> `Microso
 
 db_path <- here('02_database',
                 'access_test', 
-                # 'pfas_db_test.accdb'
-                # 'test_1_manual_uploads.accdb'
-                # 'pfas-db-template_no-PK.accdb'
-                'pfas-db-template_with-PK.accdb'
+                'pfas-db-template.accdb'
                 )
 
 con_db_pfas <- odbc::dbConnect(drv = odbc(), 
@@ -199,7 +196,7 @@ dbExecute(con_db_pfas,
           Consumer_Confidence_Report_Detection_Level DOUBLE,
           Notification_Level DOUBLE, 
           Response_Level DOUBLE,
-          UploadDateTime DATETIME
+          DB_Upload_DateTime DATETIME
           )"
 )
 ```
@@ -248,7 +245,7 @@ dbExecute(con_db_pfas,
           Added TEXT,
           Updated TEXT,
           Changelog TEXT,
-          UploadDateTime DATETIME,
+          DB_Upload_DateTime DATETIME,
           CONSTRAINT PK_well_list
             PRIMARY KEY (PS_Code)
           )"
@@ -340,16 +337,14 @@ dbExecute(con_db_pfas,
           Recovery DOUBLE,
           RPD DOUBLE,
           Qualifiers TEXT,
-          UploadDateTime DATETIME,
+          DB_Upload_DateTime DATETIME,
+          CONSTRAINT PK_targeted_analysis
+            PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
           CONSTRAINT FK_targeted_analysis
             FOREIGN KEY (PS_Code)
             REFERENCES well_list (PS_Code)
           )'
           )
-
-# primary key constraint (add to SQL statement above foreign key constraint):
-# CONSTRAINT PK_targeted_analysis
-#     PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
 ```
 
 ### Non-Targeted Analysis (NTA) Table
@@ -391,30 +386,31 @@ dbExecute(con_db_pfas,
           Sample_Type TEXT,
           Batch TEXT,
           StudyFileID TEXT,
-          Method TEXT,
+          Analysis_Method_Code TEXT,
           Conf TEXT,
           Analyte_Name TEXT,
+          Analyte_Code TEXT,
           DSSToxID TEXT,
           ExactMass DOUBLE,
           MZError DOUBLE,
           Formula TEXT,
           RT DOUBLE,
-          Area TEXT, 
+          Area DOUBLE, 
+          AreaCV DOUBLE,
           TcrRec DOUBLE,
-          Analyzed DATETIME, 
+          Analysis_Complete_Date TEXT,
+          Analysis_Complete_Time TEXT,
           MDL DOUBLE,
           Res2MDL DOUBLE,
           Qualifiers TEXT,
-          UploadDateTime DATETIME,
+          DB_Upload_DateTime DATETIME,
+          CONSTRAINT PK_non_targeted_analysis
+            PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
           CONSTRAINT FK_non_targeted_analysis
             FOREIGN KEY (PS_Code)
             REFERENCES well_list (PS_Code)
           )'
           )
-
-# primary key constraint (add to SQL statement above foreign key constraint):
-# CONSTRAINT PK_non_targeted_analysis
-#   PRIMARY KEY (Lab_Sample_ID, State_Sample_ID, Batch, Analyte_Name),
 ```
 
 ### Field Data Table
@@ -467,7 +463,7 @@ dbExecute(con_db_pfas,
           field_sediment TEXT,
           field_sediment_yes_desc TEXT,
           field_other_remarks TEXT,
-          UploadDateTime DATETIME,
+          DB_Upload_DateTime DATETIME,
           CONSTRAINT PK_field_data
             PRIMARY KEY (PS_Code, field_data_id, field_visit_id),
           CONSTRAINT FK_field_data
@@ -502,9 +498,59 @@ con_table_field <- tbl(con_db_pfas,
 
 ## Create Views (Reports)
 
-This section creates views (referred to as 'Queries' in MS Access) that report all records that exceed one of the thresholds defined in the `PFAS_thresholds` table.
+### Upload Report
 
-### Exceedance Report Function
+This section creates views (referred to as 'Queries' in MS Access) that summarize the targeted and non-targeted data loaded to the database.
+
+### Targeted Analysis Upload Report
+
+```{r}
+upload_report_query_targeted <- con_table_targeted %>% 
+    count(DB_Upload_DateTime, Batch, 
+          name = 'Number_Of_Records') %>% 
+    db_sql_render(con = con_db_pfas) %>% 
+    as.character() %>% 
+    str_remove_all(pattern = '`')
+
+upload_report_query_targeted <- glue('CREATE VIEW upload_report_targeted AS {upload_report_query_targeted}')
+
+# create view
+dbExecute(con_db_pfas, 
+          upload_report_query_targeted)
+
+## write to file ----
+write_lines(upload_report_query_targeted, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_upload-report_targeted.sql'))
+```
+
+### Non-Targeted Analysis (NTA) Upload Report
+
+```{r}
+upload_report_query_nta <- con_table_nta %>% 
+    count(DB_Upload_DateTime, Batch,
+          name = 'Number_Of_Records') %>% 
+    db_sql_render(con = con_db_pfas) %>% 
+    as.character() %>% 
+    str_remove_all(pattern = '`')
+
+upload_report_query_nta <- glue('CREATE VIEW upload_report_non_targeted AS {upload_report_query_nta}')
+
+# create view
+dbExecute(con_db_pfas, 
+          upload_report_query_nta)
+
+## write to file ----
+write_lines(upload_report_query_nta, 
+            here('04_generated_SQL_queries', 
+                 'access',
+                 'create-view_access_upload-report_non-targeted.sql'))
+```
+
+### Exceedance Reports
+
+This section creates views (referred to as 'Queries' in MS Access) that report all records that exceed one of the thresholds defined in the `PFAS_thresholds` table.
 
 The code below creates a generic function that generates the SQL query which creates a view (defined by the `report_view_name` parameter) for a given threshold value (defined by the `threshold_field_name` parameter).
 
@@ -512,6 +558,7 @@ The code below creates a generic function that generates the SQL query which cre
 
 create_view_query <- function(results_table_name = 'targeted_analysis', 
                               thresholds_table_name = 'PFAS_thresholds', 
+                              wells_table_name = 'well_list',
                               threshold_field_name, 
                               report_view_name) {
     
@@ -519,19 +566,33 @@ create_view_query <- function(results_table_name = 'targeted_analysis',
     query_view <- glue(
         "SELECT 
         {results_table_name}.Lab_Sample_ID, 
-        {results_table_name}.PS_Code, 
+        {results_table_name}.State_Sample_ID, 
+        {results_table_name}.Batch, 
+        {results_table_name}.Sample_Type,
         {results_table_name}.Collection_Date,
         {results_table_name}.Collection_Time,
         {results_table_name}.Analyte_Name, 
         {results_table_name}.Result, 
         {results_table_name}.Result_Units, 
         {thresholds_table_name}.{threshold_field_name}, 
-        IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No') AS Exceedence_YesNo
-        FROM {thresholds_table_name} 
-        INNER JOIN {results_table_name} ON {thresholds_table_name}.[Analyte_Name] = {results_table_name}.[Analyte_Name]
-        WHERE ((({results_table_name}.Result)<>'ND') 
+        IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No') AS Exceedence_YesNo,
+        {wells_table_name}.PWS_water_system_name, 
+        {wells_table_name}.Well_facility_name, 
+        targeted_analysis.DB_Upload_DateTime
+        FROM well_list INNER JOIN (
+          PFAS_thresholds INNER JOIN 
+          targeted_analysis ON PFAS_thresholds.[Analyte_Name] = targeted_analysis.[Analyte_Name]
+          ) 
+          ON well_list.PS_Code = targeted_analysis.PS_Code
+        WHERE (
+        (({results_table_name}.Sample_Type)<>'LCS' 
+            And ({results_table_name}.Sample_Type)<>'MS' 
+            And ({results_table_name}.Sample_Type)<>'MSD') 
+        AND (({results_table_name}.Result)<>'ND')
+        AND (({results_table_name}.Result)<>'ND') 
         AND (({thresholds_table_name}.{threshold_field_name}) Is Not Null) 
-        AND ((IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No'))='Yes'));"
+        AND ((IIf((CDbl([Result])>CDbl([{threshold_field_name}]))<0,'Yes','No'))='Yes')
+        );"
     )
     
     # add statement to create view
@@ -539,8 +600,7 @@ create_view_query <- function(results_table_name = 'targeted_analysis',
     
     # return the formateed SQL string
     return(query_view)
-}
-
+                              }
 
 # Example - Raw SQL - Response Level
 # query_view_RL <- glue(
@@ -573,6 +633,7 @@ Create a view / query to report exceedences of the *Response Level* thresholds:
 
 query_view_response_level <- create_view_query(results_table_name = 'targeted_analysis', 
                                                thresholds_table_name = 'PFAS_thresholds', 
+                                               wells_table_name = 'well_list',
                                                threshold_field_name = 'Response_Level', 
                                                report_view_name = 'exceedance_report_response_level')
 
@@ -599,6 +660,7 @@ Create a view / query to report exceedences of the *Notification Level* threshol
 query_view_notification_level <- create_view_query(
     results_table_name = 'targeted_analysis', 
     thresholds_table_name = 'PFAS_thresholds', 
+    wells_table_name = 'well_list',
     threshold_field_name = 'Notification_Level', 
     report_view_name = 'exceedance_report_notification_level'
 ) 
@@ -625,6 +687,7 @@ Create a view / query to report exceedences of the *Consumer Confidence Report D
 query_view_ccr_level <- create_view_query(
     results_table_name = 'targeted_analysis', 
     thresholds_table_name = 'PFAS_thresholds', 
+    wells_table_name = 'well_list',
     threshold_field_name = 'Consumer_Confidence_Report_Detection_Level', 
     report_view_name = 'exceedance_report_CCRDL'
 ) 
@@ -650,7 +713,8 @@ Create a view / query to report exceedences of the *Public_Health_Goal* threshol
 # create query
 query_view_public_health_goal <- create_view_query(
     results_table_name = 'targeted_analysis', 
-    thresholds_table_name = 'PFAS_thresholds', 
+    thresholds_table_name = 'PFAS_thresholds',
+    wells_table_name = 'well_list',
     threshold_field_name = 'Public_Health_Goal', 
     report_view_name = 'exceedance_report_public_health_goal'
 ) 

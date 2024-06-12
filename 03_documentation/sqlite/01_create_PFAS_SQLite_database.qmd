@@ -131,9 +131,9 @@ NOTE: the following columns have `NULL` records and otherwise appear to always b
 - Well_top_of_screen_in_ft_bgs 
 - Well_screen_length_in_ft
 
-:: callout-caution
+::: callout-caution
 NOTE: To treat these as numeric, have to account for the `NULL` values when loading
-::
+:::
 
 ```{r}
 

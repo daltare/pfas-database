@@ -163,9 +163,9 @@ NOTE: the following columns have `NULL` records and otherwise appear to always b
 -   Well_top_of_screen_in_ft_bgs
 -   Well_screen_length_in_ft
 
-:: callout-caution
+::: callout-caution
 NOTE: To treat these as numeric, have to account for the `NULL` values when loading
-::
+:::
 
 ```{r, chunk-create-table-wells}
 
@@ -311,7 +311,7 @@ Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command
 -   Batch
 -   Analyte_Name
 
-```{r, chunk-create-table-targeted}
+```{r, chunk-create-table-non-targeted}
 
 # https://stackoverflow.com/a/65818858
 # https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns
@@ -364,7 +364,7 @@ Assign composite primary key, using the `PRIMARY KEY (column1, column2)` command
 -   field_data_id
 -   field_visit_id ?????
 
-```{r, chunk-create-table-targeted}
+```{r, chunk-create-table-field}
 
 # https://stackoverflow.com/a/65818858
 # https://stackoverflow.com/questions/734689/sqlite-primary-key-on-multiple-columns

@@ -1,4 +1,4 @@
-CREATE VIEW exceedance_report_public_health_goal AS SELECT 
+CREATE VIEW exceedance_report_response_level AS SELECT 
 targeted_analysis.Lab_Sample_ID, 
 targeted_analysis.State_Sample_ID, 
 targeted_analysis.Batch, 
@@ -8,8 +8,8 @@ targeted_analysis.Collection_Time,
 targeted_analysis.Analyte_Name, 
 targeted_analysis.Result, 
 targeted_analysis.Result_Units, 
-PFAS_thresholds.Public_Health_Goal, 
-IIf((CDbl([Result])>CDbl([Public_Health_Goal]))<0,'Yes','No') AS Exceedence_YesNo,
+PFAS_thresholds.Response_Level, 
+IIf((CDbl([Result])>CDbl([Response_Level]))<0,'Yes','No') AS Exceedence_YesNo,
 well_list.PWS_water_system_name, 
 well_list.Well_facility_name, 
 targeted_analysis.DB_Upload_DateTime
@@ -24,6 +24,6 @@ WHERE (
     And (targeted_analysis.Sample_Type)<>'MSD') 
 AND ((targeted_analysis.Result)<>'ND')
 AND ((targeted_analysis.Result)<>'ND') 
-AND ((PFAS_thresholds.Public_Health_Goal) Is Not Null) 
-AND ((IIf((CDbl([Result])>CDbl([Public_Health_Goal]))<0,'Yes','No'))='Yes')
+AND ((PFAS_thresholds.Response_Level) Is Not Null) 
+AND ((IIf((CDbl([Result])>CDbl([Response_Level]))<0,'Yes','No'))='Yes')
 );
